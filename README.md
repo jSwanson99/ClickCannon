@@ -11,7 +11,7 @@ go build otelspam
 Copy the `example.yaml` config, and edit the values.
 
 Make a directory for logs or trace data.
-Data should be exported from ClickHouse using `OUTFILE ... COMPRESSION 'zst' FORMAT Native`.
+Data should be exported from ClickHouse using `INTO OUTFILE` syntax.
 Compression is optional, but you must make your file extension either `.native` or `.native.zst`.
 
 Example data export:

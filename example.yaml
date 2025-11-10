@@ -18,6 +18,15 @@ insert:
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
   # an exact limit.
   max_rows_per_insert: 25000
+  # ClickHouse connection settings
+  clickhouse:
+    address: localhost:9000
+    secure: false
+    user: default
+    password:
+    # One of: none, lz4, zstd, lz4hc
+    # This will affect Insert Bytes metric
+    compression: none
   # Database and tables to insert into
   database: otelspam
   logs_table: otel_logs_null

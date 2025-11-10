@@ -84,7 +84,7 @@ func main() {
 	var insertWg sync.WaitGroup
 	mw.ActiveInserters.Store(int64(config.Insert.Threads))
 	for i := range config.Insert.Threads {
-		w := newInsertWorker(i, config.Insert.MaxRowsPerInsert, config.Insert.Database, config.GetInsertTable(), blockPool, blockQueue, &mw.InsertRowsPerSecond, &mw.InsertBytesPerSecond)
+		w := newInsertWorker(i, config, blockPool, blockQueue, &mw.InsertRowsPerSecond, &mw.InsertBytesPerSecond)
 		insertWorkers = append(insertWorkers, w)
 		insertWg.Go(func() {
 			w.start()

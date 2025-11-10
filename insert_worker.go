@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"sync/atomic"
@@ -13,8 +14,10 @@ import (
 type insertWorker struct {
 	id               int
 	maxRowsPerInsert int
-	database         string
-	table            string
+
+	chConfig *ClickHouseConfig
+	database string
+	table    string
 
 	blockPool  *StructPool[SharedColumns]
 	blockQueue <-chan SharedColumns
@@ -23,12 +26,14 @@ type insertWorker struct {
 	totalBytes *atomic.Int64
 }
 
-func newInsertWorker(id, maxRowsPerInsert int, database, table string, blockPool *StructPool[SharedColumns], blockQueue <-chan SharedColumns, totalRows, totalBytes *atomic.Int64) *insertWorker {
+func newInsertWorker(id int, config *Config, blockPool *StructPool[SharedColumns], blockQueue <-chan SharedColumns, totalRows, totalBytes *atomic.Int64) *insertWorker {
 	w := insertWorker{
 		id:               id,
-		maxRowsPerInsert: maxRowsPerInsert,
-		database:         database,
-		table:            table,
+		maxRowsPerInsert: config.Insert.MaxRowsPerInsert,
+
+		chConfig: &config.Insert.ClickHouse,
+		database: config.Insert.Database,
+		table:    config.GetInsertTable(),
 
 		blockPool:  blockPool,
 		blockQueue: blockQueue,
@@ -41,7 +46,22 @@ func newInsertWorker(id, maxRowsPerInsert int, database, table string, blockPool
 }
 
 func (w *insertWorker) start() {
-	c, err := ch.Dial(context.Background(), ch.Options{Address: "localhost:9000"})
+	chOpts := ch.Options{
+		Address:    w.chConfig.Address,
+		User:       w.chConfig.User,
+		Password:   w.chConfig.Password,
+		ClientName: "otelspam",
+	}
+
+	if w.chConfig.Secure {
+		chOpts.TLS = &tls.Config{}
+	}
+
+	if w.chConfig.Compression != "" {
+		chOpts.Compression, _ = ch.CompressionString(w.chConfig.Compression)
+	}
+
+	c, err := ch.Dial(context.Background(), chOpts)
 	if err != nil {
 		panic(err)
 	}

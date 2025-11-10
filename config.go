@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 
+	"github.com/ClickHouse/ch-go"
 	"github.com/goccy/go-yaml"
 )
 
@@ -30,15 +32,24 @@ type Config struct {
 		// an exact limit.
 		MaxRowsPerInsert int `yaml:"max_rows_per_insert"`
 
-		Database    string `yaml:"database"`
-		LogsTable   string `yaml:"logs_table"`
-		TracesTable string `yaml:"traces_table"`
+		ClickHouse  ClickHouseConfig `yaml:"clickhouse"`
+		Database    string           `yaml:"database"`
+		LogsTable   string           `yaml:"logs_table"`
+		TracesTable string           `yaml:"traces_table"`
 	} `yaml:"insert"`
 	Metrics struct {
 		ClickHouseDSN string `yaml:"clickhouse_dsn"`
 		Database      string `yaml:"database"`
 		Table         string `yaml:"table"`
 	} `yaml:"metrics"`
+}
+
+type ClickHouseConfig struct {
+	Address     string `yaml:"address"`
+	Secure      bool   `yaml:"secure"`
+	User        string `yaml:"user"`
+	Password    string `yaml:"password"`
+	Compression string `yaml:"compression"`
 }
 
 func (c *Config) GetDataFolder() string {
@@ -88,6 +99,16 @@ func (c *Config) Validate() error {
 
 	if c.Insert.MaxRowsPerInsert == 0 {
 		c.Insert.MaxRowsPerInsert = 8_000
+	}
+
+	if c.Insert.ClickHouse.Address == "" {
+		return errors.New("must set insert.clickhouse.address in config")
+	}
+	if c.Insert.ClickHouse.Compression != "" {
+		_, compressErr := ch.CompressionString(c.Insert.ClickHouse.Compression)
+		if compressErr != nil {
+			return fmt.Errorf("invalid compression in insert.clickhouse.compression: %w", compressErr)
+		}
 	}
 
 	if c.Insert.Database == "" {

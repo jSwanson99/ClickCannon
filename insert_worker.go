@@ -16,7 +16,6 @@ type insertWorker struct {
 	maxRowsPerInsert int
 
 	chConfig *ClickHouseConfig
-	database string
 	table    string
 
 	blockPool  *StructPool[SharedColumns]
@@ -32,7 +31,6 @@ func newInsertWorker(id int, config *Config, blockPool *StructPool[SharedColumns
 		maxRowsPerInsert: config.Insert.MaxRowsPerInsert,
 
 		chConfig: &config.Insert.ClickHouse,
-		database: config.Insert.Database,
 		table:    config.GetInsertTable(),
 
 		blockPool:  blockPool,
@@ -50,6 +48,7 @@ func (w *insertWorker) start() {
 		Address:    w.chConfig.Address,
 		User:       w.chConfig.User,
 		Password:   w.chConfig.Password,
+		Database:   w.chConfig.Database,
 		ClientName: "otelspam",
 	}
 
@@ -88,7 +87,7 @@ func (w *insertWorker) start() {
 		}
 
 		if err := c.Do(context.Background(), ch.Query{
-			Body:  fmt.Sprintf("INSERT INTO %q.%q %s VALUES", w.database, w.table, insertInput.Columns()),
+			Body:  fmt.Sprintf("INSERT INTO %q.%q %s VALUES", w.chConfig.Database, w.table, insertInput.Columns()),
 			Input: insertInput,
 			OnInput: func(ctx context.Context) error {
 				insertBlock.Reset()

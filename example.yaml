@@ -27,10 +27,10 @@ insert:
     # One of: none, lz4, zstd, lz4hc
     # This will affect Insert Bytes metric
     compression: none
-  # Database and tables to insert into
-  database: otelspam
-  logs_table: otel_logs_null
-  traces_table: otel_traces_null
+    # Database and tables to insert into
+    database: otel
+    logs_table: otel_logs
+    traces_table: otel_traces
 
 # Settings related to the program's read/insert metrics
 metrics:

@@ -32,10 +32,7 @@ type Config struct {
 		// an exact limit.
 		MaxRowsPerInsert int `yaml:"max_rows_per_insert"`
 
-		ClickHouse  ClickHouseConfig `yaml:"clickhouse"`
-		Database    string           `yaml:"database"`
-		LogsTable   string           `yaml:"logs_table"`
-		TracesTable string           `yaml:"traces_table"`
+		ClickHouse ClickHouseConfig `yaml:"clickhouse"`
 	} `yaml:"insert"`
 	Metrics struct {
 		ClickHouseDSN string `yaml:"clickhouse_dsn"`
@@ -45,11 +42,17 @@ type Config struct {
 }
 
 type ClickHouseConfig struct {
-	Address     string `yaml:"address"`
+	Address string `yaml:"address"`
+
 	Secure      bool   `yaml:"secure"`
-	User        string `yaml:"user"`
-	Password    string `yaml:"password"`
 	Compression string `yaml:"compression"`
+
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+
+	Database    string `yaml:"database"`
+	LogsTable   string `yaml:"logs_table"`
+	TracesTable string `yaml:"traces_table"`
 }
 
 func (c *Config) GetDataFolder() string {
@@ -66,9 +69,9 @@ func (c *Config) GetDataFolder() string {
 func (c *Config) GetInsertTable() string {
 	switch c.Read.DataType {
 	case ConfigDataTypeLogs:
-		return c.Insert.LogsTable
+		return c.Insert.ClickHouse.LogsTable
 	case ConfigDataTypeTraces:
-		return c.Insert.TracesTable
+		return c.Insert.ClickHouse.TracesTable
 	default:
 		return ""
 	}
@@ -111,14 +114,14 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if c.Insert.Database == "" {
-		c.Insert.Database = "default"
+	if c.Insert.ClickHouse.Database == "" {
+		c.Insert.ClickHouse.Database = "default"
 	}
 
-	if c.Read.DataType == ConfigDataTypeLogs && c.Insert.LogsTable == "" {
-		return errors.New("must set insert.logs_table in config for inserting logs")
-	} else if c.Read.DataType == ConfigDataTypeTraces && c.Insert.TracesTable == "" {
-		return errors.New("must set insert.traces_table in config for inserting traces")
+	if c.Read.DataType == ConfigDataTypeLogs && c.Insert.ClickHouse.LogsTable == "" {
+		return errors.New("must set insert.clickhouse.logs_table in config for inserting logs")
+	} else if c.Read.DataType == ConfigDataTypeTraces && c.Insert.ClickHouse.TracesTable == "" {
+		return errors.New("must set insert.clickhouse.traces_table in config for inserting traces")
 	}
 
 	if c.Metrics.ClickHouseDSN != "" {

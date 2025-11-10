@@ -1,0 +1,142 @@
+package main
+
+import (
+	"errors"
+	"flag"
+	"os"
+
+	"github.com/goccy/go-yaml"
+)
+
+const ConfigDataTypeLogs = "logs"
+const ConfigDataTypeTraces = "traces"
+
+type Config struct {
+	Read struct {
+		DataType   string `yaml:"data_type"`
+		LogsPath   string `yaml:"logs_path"`
+		TracesPath string `yaml:"traces_path"`
+		// How many read threads
+		Threads int `yaml:"threads"`
+		// How many MiB decompressed bytes per second can be read from disk
+		MiBytesPerSecondLimit int64 `yaml:"mb_per_second_limit"`
+	} `yaml:"read"`
+
+	Insert struct {
+		// How many insert threads (one connection per thread)
+		Threads int `yaml:"threads"`
+		// How many rows per INSERT command. Blocks will be streamed until this limit, then a new INSERT will start.
+		// After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
+		// an exact limit.
+		MaxRowsPerInsert int `yaml:"max_rows_per_insert"`
+
+		Database    string `yaml:"database"`
+		LogsTable   string `yaml:"logs_table"`
+		TracesTable string `yaml:"traces_table"`
+	} `yaml:"insert"`
+	Metrics struct {
+		ClickHouseDSN string `yaml:"clickhouse_dsn"`
+		Database      string `yaml:"database"`
+		Table         string `yaml:"table"`
+	} `yaml:"metrics"`
+}
+
+func (c *Config) GetDataFolder() string {
+	switch c.Read.DataType {
+	case ConfigDataTypeLogs:
+		return c.Read.LogsPath
+	case ConfigDataTypeTraces:
+		return c.Read.TracesPath
+	default:
+		return ""
+	}
+}
+
+func (c *Config) GetInsertTable() string {
+	switch c.Read.DataType {
+	case ConfigDataTypeLogs:
+		return c.Insert.LogsTable
+	case ConfigDataTypeTraces:
+		return c.Insert.TracesTable
+	default:
+		return ""
+	}
+}
+
+func (c *Config) Validate() error {
+	if c.Read.DataType == "" || (c.Read.DataType != ConfigDataTypeLogs && c.Read.DataType != ConfigDataTypeTraces) {
+		return errors.New("must set read.data_type in config to one of: logs, traces")
+	}
+
+	if c.Read.DataType == ConfigDataTypeLogs && c.Read.LogsPath == "" {
+		return errors.New("must set read.logs_path in config for reading logs")
+	} else if c.Read.DataType == ConfigDataTypeTraces && c.Read.TracesPath == "" {
+		return errors.New("must set read.traces_path in config for reading traces")
+	}
+
+	if c.Read.Threads == 0 {
+		return errors.New("must set read.threads in config")
+	}
+
+	if c.Read.MiBytesPerSecondLimit == 0 {
+		return errors.New("must set read.mb_per_second_limit in config to a non-zero value")
+	}
+
+	if c.Insert.Threads == 0 {
+		return errors.New("must set insert.threads in config")
+	}
+
+	if c.Insert.MaxRowsPerInsert == 0 {
+		c.Insert.MaxRowsPerInsert = 8_000
+	}
+
+	if c.Insert.Database == "" {
+		c.Insert.Database = "default"
+	}
+
+	if c.Read.DataType == ConfigDataTypeLogs && c.Insert.LogsTable == "" {
+		return errors.New("must set insert.logs_table in config for inserting logs")
+	} else if c.Read.DataType == ConfigDataTypeTraces && c.Insert.TracesTable == "" {
+		return errors.New("must set insert.traces_table in config for inserting traces")
+	}
+
+	if c.Metrics.ClickHouseDSN != "" {
+		if c.Metrics.Database == "" {
+			c.Metrics.Database = "otelspam"
+		}
+
+		if c.Metrics.Table == "" {
+			c.Metrics.Database = "perf"
+		}
+	}
+
+	return nil
+}
+
+func loadConfig() (*Config, error) {
+	var configPath string
+	flag.StringVar(&configPath, "config", "", "Path to YAML configuration file")
+	flag.Parse()
+
+	if configPath == "" {
+		return nil, errors.New("--config flag is required")
+	}
+
+	configBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var config Config
+	err = yaml.Unmarshal(configBytes, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = config.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}

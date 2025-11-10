@@ -28,5 +28,11 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+otelspam
+
+log_data/*native*
+trace_data/*native*
+test.yaml

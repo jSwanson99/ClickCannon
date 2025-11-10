@@ -1,0 +1,32 @@
+
+read:
+  # One of: logs, traces
+  data_type: traces
+  # Path to logs/traces directories. Files must be named .native or .native.zst
+  logs_path: log_data
+  traces_path: trace_data
+  # The number of read threads to use. One thread per file.
+  threads: 2
+  # The speed limit across all threads, in MiB
+  mb_per_second_limit: 2048
+
+
+insert:
+  # The number of insert threads to use. One connection per thread.
+  threads: 4
+  # How many rows per INSERT command. Blocks will be streamed until this limit, then a new INSERT will start.
+  # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
+  # an exact limit.
+  max_rows_per_insert: 25000
+  # Database and tables to insert into
+  database: otelspam
+  logs_table: otel_logs_null
+  traces_table: otel_traces_null
+
+# Settings related to the program's read/insert metrics
+metrics:
+  # ClickHouse DSN URL, same as OTel exporter. Optional, if empty then metrics won't be stored.
+  clickhouse_dsn: tcp://localhost:9000
+  # Database and table for capturing performance metrics, these are created automatically.
+  database: otelspam
+  table: perf

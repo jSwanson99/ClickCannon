@@ -65,20 +65,21 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt, syscall.SIGTERM)
 
+	// TODO: ...don't manage readers this way
+	readerDone := make(chan struct{}, config.Read.Threads-1)
 	readCtx, cancelReaders := context.WithCancel(context.Background())
 	readWorkers := make([]*readWorker, 0, config.Read.Threads)
 	var readWg sync.WaitGroup
-	mw.ActiveReaders.Store(int64(config.Read.Threads))
-	for i := range config.Read.Threads {
-		dataFile := otelFiles[i]
-		w := newReadWorker(i, dataFile.Path, dataFile.Compressed, bytesPerSecondPerWorker(bytesPerSecond, int64(config.Read.Threads)), blockPool, blockQueue, &mw.ReadRowsPerSecond, &mw.ReadBytesPerSecond)
+	go readScheduler(readCtx, cancelReaders, &mw.ActiveReaders, otelFiles, readerDone, func(id int, f otelFile) {
+		w := newReadWorker(id, f.Path, f.Compressed, bytesPerSecondPerWorker(bytesPerSecond, int64(config.Read.Threads)), blockPool, blockQueue, &mw.ReadRowsPerSecond, &mw.ReadBytesPerSecond)
 		readWorkers = append(readWorkers, w)
 		readWg.Go(func() {
+			mw.ActiveReaders.Add(1)
 			w.start(readCtx)
 			mw.ActiveReaders.Add(-1)
+			<-readerDone
 		})
-	}
-	fmt.Printf("started %d read workers\n", config.Read.Threads)
+	})
 
 	insertWorkers := make([]*insertWorker, 0, config.Insert.Threads)
 	var insertWg sync.WaitGroup
@@ -177,4 +178,25 @@ func getDataFiles(folderPath string) ([]otelFile, error) {
 	})
 
 	return files, nil
+}
+
+func readScheduler(ctx context.Context, cancelReaderCtx context.CancelFunc, activeReaders *atomic.Int64, files []otelFile, readerDone chan struct{}, startReader func(id int, f otelFile)) {
+	for i := 0; i < len(files); i++ {
+		nextFile := files[i]
+		startReader(i, nextFile)
+		readerDone <- struct{}{}
+	}
+
+	// TODO: no.
+	for {
+		select {
+		case <-time.After(1 * time.Second):
+			if activeReaders.Load() == 0 {
+				cancelReaderCtx()
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }

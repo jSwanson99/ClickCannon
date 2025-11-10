@@ -81,9 +81,8 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond int64, clickh
 }
 
 func (w *metricsWorker) start(ctx context.Context) {
-	hasReaders := true
 	var totalRows, totalBytes int64
-	for hasReaders && ctx.Err() == nil {
+	for ctx.Err() == nil {
 		select {
 		case <-time.After(1 * time.Second):
 			now := time.Now()
@@ -124,8 +123,6 @@ func (w *metricsWorker) start(ctx context.Context) {
 					fmt.Println(fmt.Errorf("failed to send metrics: %w", err))
 				}
 			}
-
-			hasReaders = activeReaders > 0
 		case <-ctx.Done():
 			return
 		}

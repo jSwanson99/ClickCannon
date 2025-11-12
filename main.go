@@ -94,7 +94,7 @@ func main() {
 	}
 	fmt.Printf("started %d insert workers\n", config.Insert.Threads)
 
-	go speedController(readCtx, bytesPerSecond, readWorkers, &mw.ActiveReaders)
+	go speedController(readCtx, bytesPerSecond, &readWorkers, &mw.ActiveReaders)
 	go mw.start(readCtx)
 
 	select {
@@ -113,7 +113,7 @@ func main() {
 
 // speedController updates the speed limit across all read threads.
 // If there's 2 threads with a 1GB speed limit, each thread gets 512MB.
-func speedController(ctx context.Context, bytesPerSecond int64, readWorkers []*readWorker, activeReaders *atomic.Int64) {
+func speedController(ctx context.Context, bytesPerSecond int64, readWorkers *[]*readWorker, activeReaders *atomic.Int64) {
 	lastLimit := float64(bytesPerSecond)
 	for {
 		select {
@@ -123,7 +123,7 @@ func speedController(ctx context.Context, bytesPerSecond int64, readWorkers []*r
 				continue
 			}
 
-			for _, w := range readWorkers {
+			for _, w := range *readWorkers {
 				w.UpdateSpeedLimit(bps)
 			}
 

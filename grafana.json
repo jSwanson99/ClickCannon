@@ -24,7 +24,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -75,6 +75,10 @@
       "pluginVersion": "12.1.0-pre",
       "targets": [
         {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "${chds}"
+          },
           "editorType": "sql",
           "format": 1,
           "meta": {
@@ -99,7 +103,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -147,6 +151,10 @@
       "pluginVersion": "12.1.0-pre",
       "targets": [
         {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "${chds}"
+          },
           "editorType": "sql",
           "format": 1,
           "meta": {
@@ -171,7 +179,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -219,6 +227,10 @@
       "pluginVersion": "12.1.0-pre",
       "targets": [
         {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "${chds}"
+          },
           "editorType": "sql",
           "format": 1,
           "meta": {
@@ -243,7 +255,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -291,6 +303,10 @@
       "pluginVersion": "12.1.0-pre",
       "targets": [
         {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "${chds}"
+          },
           "editorType": "sql",
           "format": 1,
           "meta": {
@@ -315,7 +331,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -398,7 +414,7 @@
         {
           "datasource": {
             "type": "grafana-clickhouse-datasource",
-            "uid": "bdp39j3ih105cd"
+            "uid": "${chds}"
           },
           "editorType": "sql",
           "format": 1,
@@ -424,7 +440,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -507,7 +523,7 @@
         {
           "datasource": {
             "type": "grafana-clickhouse-datasource",
-            "uid": "bdp39j3ih105cd"
+            "uid": "${chds}"
           },
           "editorType": "sql",
           "format": 1,
@@ -533,7 +549,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -616,7 +632,7 @@
         {
           "datasource": {
             "type": "grafana-clickhouse-datasource",
-            "uid": "bdp39j3ih105cd"
+            "uid": "${chds}"
           },
           "editorType": "sql",
           "format": 1,
@@ -642,7 +658,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -692,7 +708,7 @@
         {
           "datasource": {
             "type": "grafana-clickhouse-datasource",
-            "uid": "bdp39j3ih105cd"
+            "uid": "${chds}"
           },
           "editorType": "sql",
           "format": 1,
@@ -718,7 +734,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "bdp39j3ih105cd"
+        "uid": "${chds}"
       },
       "fieldConfig": {
         "defaults": {
@@ -768,7 +784,7 @@
         {
           "datasource": {
             "type": "grafana-clickhouse-datasource",
-            "uid": "bdp39j3ih105cd"
+            "uid": "${chds}"
           },
           "editorType": "sql",
           "format": 1,
@@ -800,8 +816,24 @@
     "list": [
       {
         "current": {
-          "text": "ad95990a-c001-11f0-808e-9c6b0014b136",
-          "value": "ad95990a-c001-11f0-808e-9c6b0014b136"
+          "text": "CHCloud spencer-test",
+          "value": "cdp39twxzn4zka"
+        },
+        "name": "chds",
+        "options": [],
+        "query": "grafana-clickhouse-datasource",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "text": "2e7a5e50-c190-11f0-b30b-060f91b19e3d",
+          "value": "2e7a5e50-c190-11f0-b30b-060f91b19e3d"
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "${chds}"
         },
         "definition": "SELECT DISTINCT run_id FROM otelspam.perf ORDER BY timestamp DESC",
         "description": "",
@@ -816,8 +848,12 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": "1762977389000",
-          "value": "1762977389000"
+          "text": "1763148546000",
+          "value": "1763148546000"
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "${chds}"
         },
         "definition": "SELECT min(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
         "hide": 2,
@@ -830,8 +866,12 @@
       },
       {
         "current": {
-          "text": "1762977394000",
-          "value": "1762977394000"
+          "text": "1763148648000",
+          "value": "1763148648000"
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "${chds}"
         },
         "definition": "SELECT max(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
         "hide": 2,
@@ -845,12 +885,12 @@
     ]
   },
   "time": {
-    "from": "2025-11-12T19:56:15.206Z",
-    "to": "2025-11-12T20:12:16.663Z"
+    "from": "now-5m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "OTel Spam",
   "uid": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-  "version": 19
+  "version": 21
 }

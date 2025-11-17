@@ -18,28 +18,32 @@ type readWorker struct {
 	filePath            string
 	fileCompressed      bool
 	bytesPerSecondLimit float64
+	passthrough         bool
 
 	speedRd *SpeedLimitedReader
 
-	blockPool  *StructPool[SharedColumns]
-	blockQueue chan<- SharedColumns
+	blockPool   *StructPool[SharedColumns]
+	insertQueue chan<- SharedColumns
 
-	totalRows  *atomic.Int64
-	totalBytes *atomic.Int64
+	totalRows              *atomic.Int64
+	totalBytesCompressed   *atomic.Int64
+	totalBytesUncompressed *atomic.Int64
 }
 
-func newReadWorker(id int, filePath string, fileCompressed bool, bytesPerSecondLimit float64, blockPool *StructPool[SharedColumns], blockQueue chan<- SharedColumns, totalRows, totalBytes *atomic.Int64) *readWorker {
+func newReadWorker(id int, filePath string, fileCompressed bool, bytesPerSecondLimit float64, passthrough bool, blockPool *StructPool[SharedColumns], insertQueue chan<- SharedColumns, totalRows, totalBytesCompressed, totalBytesUncompressed *atomic.Int64) *readWorker {
 	w := readWorker{
 		id:                  id,
 		filePath:            filePath,
 		fileCompressed:      fileCompressed,
 		bytesPerSecondLimit: bytesPerSecondLimit,
+		passthrough:         passthrough,
 
-		blockPool:  blockPool,
-		blockQueue: blockQueue,
+		blockPool:   blockPool,
+		insertQueue: insertQueue,
 
-		totalRows:  totalRows,
-		totalBytes: totalBytes,
+		totalRows:              totalRows,
+		totalBytesCompressed:   totalBytesCompressed,
+		totalBytesUncompressed: totalBytesUncompressed,
 	}
 
 	return &w
@@ -67,13 +71,14 @@ func (w *readWorker) start(ctx context.Context) {
 	}(data)
 
 	var dec proto.Block
-	bufRd := bufio.NewReader(data)
+	compressedSpeedRd := NewSpeedReader(data, w.totalBytesCompressed)
+	bufRd := bufio.NewReader(compressedSpeedRd)
 	var optReader io.Reader = bufRd
 	if w.fileCompressed {
 		zstdRd, err := zstd.NewReader(optReader,
 			zstd.IgnoreChecksum(true),
 			zstd.WithDecoderConcurrency(1), // TODO: with higher concurrency, this performs better when set to 1
-			//zstd.WithDecoderLowmem(true),
+			zstd.WithDecoderLowmem(true),
 		)
 		if err != nil {
 			panic(err)
@@ -82,7 +87,7 @@ func (w *readWorker) start(ctx context.Context) {
 		optReader = zstdRd
 	}
 
-	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, w.totalBytes)
+	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, w.totalBytesUncompressed)
 	defer w.speedRd.Close()
 
 	rd := proto.NewReader(w.speedRd)
@@ -101,8 +106,13 @@ func (w *readWorker) start(ctx context.Context) {
 		cols.UpdateDate()
 
 		w.totalRows.Add(int64(colsRes.Rows()))
-		w.blockQueue <- cols
 
-		//rw.blockPool.Release(cols) // passthrough for testing max read speed
+		if w.passthrough {
+			// Passthrough for testing max disk read speed.
+			// Block is immediately released, never sent to the insert queue.
+			w.blockPool.Release(cols)
+		} else {
+			w.insertQueue <- cols
+		}
 	}
 }

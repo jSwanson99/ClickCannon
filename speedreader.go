@@ -8,6 +8,24 @@ import (
 	"time"
 )
 
+type SpeedReader struct {
+	reader io.Reader
+	count  *atomic.Int64
+}
+
+func NewSpeedReader(r io.Reader, count *atomic.Int64) *SpeedReader {
+	return &SpeedReader{
+		reader: r,
+		count:  count,
+	}
+}
+
+func (cr *SpeedReader) Read(p []byte) (n int, err error) {
+	n, err = cr.reader.Read(p)
+	cr.count.Add(int64(n))
+	return n, err
+}
+
 type SpeedLimitedReader struct {
 	exit chan struct{}
 

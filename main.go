@@ -71,7 +71,10 @@ func main() {
 	readWorkers := make([]*readWorker, 0, config.Read.Threads)
 	var readWg sync.WaitGroup
 	go readScheduler(readCtx, cancelReaders, &mw.ActiveReaders, otelFiles, readerDone, func(id int, f otelFile) {
-		w := newReadWorker(id, f.Path, f.Compressed, bytesPerSecondPerWorker(bytesPerSecond, int64(config.Read.Threads)), blockPool, blockQueue, &mw.ReadRowsPerSecond, &mw.ReadBytesPerSecond)
+		w := newReadWorker(
+			id, f.Path, f.Compressed,
+			bytesPerSecondPerWorker(bytesPerSecond, int64(config.Read.Threads)), config.Read.Passthrough,
+			blockPool, blockQueue, &mw.ReadRowsPerSecond, &mw.ReadCompressedBytesPerSecond, &mw.ReadUncompressedBytesPerSecond)
 		readWorkers = append(readWorkers, w)
 		readWg.Go(func() {
 			mw.ActiveReaders.Add(1)

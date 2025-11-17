@@ -9,6 +9,8 @@ read:
   threads: 2
   # The speed limit across all threads, in MiB
   mb_per_second_limit: 2048
+  # Set to true if you're only testing read performance off of disk, this will not send data to the insert queue
+  passthrough: false
 
 
 insert:
@@ -17,7 +19,7 @@ insert:
   # How many rows per INSERT command. Blocks will be streamed until this limit, then a new INSERT will start.
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
   # an exact limit.
-  max_rows_per_insert: 25000
+  max_rows_per_insert: 100000
   # ClickHouse connection settings
   clickhouse:
     address: localhost:9000

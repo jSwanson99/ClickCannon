@@ -22,6 +22,8 @@ type Config struct {
 		Threads int `yaml:"threads"`
 		// How many MiB decompressed bytes per second can be read from disk
 		MiBytesPerSecondLimit int64 `yaml:"mb_per_second_limit"`
+		// Set to true if you're only testing read performance off of disk, this will not send data to the insert queue
+		Passthrough bool `yaml:"passthrough"`
 	} `yaml:"read"`
 
 	Insert struct {

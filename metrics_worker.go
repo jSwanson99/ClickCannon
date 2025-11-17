@@ -19,12 +19,13 @@ type metricsWorker struct {
 	dataType             string
 	targetBytesPerSecond int64
 
-	ReadRowsPerSecond    atomic.Int64
-	ReadBytesPerSecond   atomic.Int64
-	InsertRowsPerSecond  atomic.Int64
-	InsertBytesPerSecond atomic.Int64
-	ActiveReaders        atomic.Int64
-	ActiveInserters      atomic.Int64
+	ReadRowsPerSecond              atomic.Int64
+	ReadCompressedBytesPerSecond   atomic.Int64
+	ReadUncompressedBytesPerSecond atomic.Int64
+	InsertRowsPerSecond            atomic.Int64
+	InsertBytesPerSecond           atomic.Int64
+	ActiveReaders                  atomic.Int64
+	ActiveInserters                atomic.Int64
 }
 
 func newMetricsWorker(runID, dataType string, targetBytesPerSecond int64, clickhouseDSN, metricsDatabase, metricsTable string) (*metricsWorker, error) {
@@ -58,11 +59,13 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond int64, clickh
 		    data_type LowCardinality(String),
 		    target_bytes_per_second UInt64,
 		    read_rows UInt64,
-		    read_bytes UInt64,
+		    read_bytes_compressed UInt64,
+		    read_bytes_uncompressed UInt64,
 		    insert_rows UInt64,
 		    insert_bytes UInt64,
 		    total_rows UInt64,
-		    total_bytes UInt64,
+		    total_compressed_bytes UInt64,
+		    total_uncompressed_bytes UInt64,
 		    active_readers UInt8,
 		    active_inserters UInt8,
 		) Engine = MergeTree()
@@ -74,14 +77,14 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond int64, clickh
 			return nil, fmt.Errorf("failed to create metrics table: %w", err)
 		}
 
-		w.insertSQL = fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, metricsDatabase, metricsTable)
+		w.insertSQL = fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, metricsDatabase, metricsTable)
 	}
 
 	return &w, nil
 }
 
 func (w *metricsWorker) start(ctx context.Context) {
-	var totalRows, totalBytes int64
+	var totalRows, totalCompressedBytes, totalUncompressedBytes int64
 	for ctx.Err() == nil {
 		select {
 		case <-time.After(1 * time.Second):
@@ -89,34 +92,39 @@ func (w *metricsWorker) start(ctx context.Context) {
 			activeReaders := w.ActiveReaders.Load()
 			activeInserters := w.ActiveInserters.Load()
 			readRowsPerSecond := w.ReadRowsPerSecond.Load()
-			readBytesPerSecond := w.ReadBytesPerSecond.Load()
+			readCompressedBytesPerSecond := w.ReadCompressedBytesPerSecond.Load()
+			readUncompressedBytesPerSecond := w.ReadUncompressedBytesPerSecond.Load()
 			insertRowsPerSecond := w.InsertRowsPerSecond.Load()
 			insertBytesPerSecond := w.InsertBytesPerSecond.Load()
 			totalRows += readRowsPerSecond
-			totalBytes += readBytesPerSecond
+			totalCompressedBytes += readCompressedBytesPerSecond
+			totalUncompressedBytes += readUncompressedBytesPerSecond
 
-			fmt.Printf("Read(%d) %s rows/s %s/s, Insert(%d) %s rows/s %s/s, Total %s rows %s\n",
+			fmt.Printf("Read(%d) %s rows/s %s/s (%s/s compressed), Insert(%d) %s rows/s %s/s, Total %s rows %s (%s compressed)\n",
 				activeReaders,
 				FormatNumber(readRowsPerSecond),
-				FormatBytes(readBytesPerSecond),
+				FormatBytes(readUncompressedBytesPerSecond),
+				FormatBytes(readCompressedBytesPerSecond),
 				activeInserters,
 				FormatNumber(w.InsertRowsPerSecond.Load()),
 				FormatBytes(w.InsertBytesPerSecond.Load()),
 				FormatNumber(totalRows),
-				FormatBytes(totalBytes),
+				FormatBytes(totalUncompressedBytes),
+				FormatBytes(totalCompressedBytes),
 			)
 
 			w.ReadRowsPerSecond.Store(0)
-			w.ReadBytesPerSecond.Store(0)
+			w.ReadCompressedBytesPerSecond.Store(0)
+			w.ReadUncompressedBytesPerSecond.Store(0)
 			w.InsertRowsPerSecond.Store(0)
 			w.InsertBytesPerSecond.Store(0)
 
 			if w.insertSQL != "" {
 				err := w.conn.Exec(context.Background(), w.insertSQL,
 					w.runID, now, w.dataType, w.targetBytesPerSecond,
-					readRowsPerSecond, readBytesPerSecond,
+					readRowsPerSecond, readCompressedBytesPerSecond, readUncompressedBytesPerSecond,
 					insertRowsPerSecond, insertBytesPerSecond,
-					totalRows, totalBytes,
+					totalRows, totalCompressedBytes, totalUncompressedBytes,
 					activeReaders, activeInserters,
 				)
 				if err != nil {

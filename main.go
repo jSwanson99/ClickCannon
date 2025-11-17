@@ -32,7 +32,7 @@ func main() {
 
 	bytesPerSecond := config.Read.MiBytesPerSecondLimit * 1024 * 1024
 
-	blockAllocMultiplier := 4
+	blockAllocMultiplier := 2
 	blocksToAlloc := (config.Read.Threads + config.Insert.Threads) * blockAllocMultiplier
 	blockQueue := make(chan SharedColumns, blocksToAlloc)
 	var blockPool *StructPool[SharedColumns]

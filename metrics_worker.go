@@ -64,8 +64,8 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond int64, clickh
 		    insert_rows UInt64,
 		    insert_bytes UInt64,
 		    total_rows UInt64,
-		    total_compressed_bytes UInt64,
-		    total_uncompressed_bytes UInt64,
+		    total_bytes_compressed UInt64,
+		    total_bytes_uncompressed UInt64,
 		    active_readers UInt8,
 		    active_inserters UInt8,
 		) Engine = MergeTree()

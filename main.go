@@ -34,7 +34,7 @@ func main() {
 
 	blockAllocMultiplier := 2
 	blocksToAlloc := (config.Read.Threads + config.Insert.Threads) * blockAllocMultiplier
-	blockQueue := make(chan SharedColumns, blocksToAlloc)
+	insertQueue := make(chan SharedColumns, blocksToAlloc)
 	var blockPool *StructPool[SharedColumns]
 	if config.Read.DataType == ConfigDataTypeLogs {
 		blockPool, err = NewStructPool[SharedColumns](blocksToAlloc, func() (SharedColumns, error) {
@@ -74,7 +74,7 @@ func main() {
 		w := newReadWorker(
 			id, f.Path, f.Compressed,
 			bytesPerSecondPerWorker(bytesPerSecond, int64(config.Read.Threads)), config.Read.Passthrough,
-			blockPool, blockQueue, &mw.ReadRowsPerSecond, &mw.ReadCompressedBytesPerSecond, &mw.ReadUncompressedBytesPerSecond)
+			blockPool, insertQueue, &mw.ReadRowsPerSecond, &mw.ReadCompressedBytesPerSecond, &mw.ReadUncompressedBytesPerSecond)
 		readWorkers = append(readWorkers, w)
 		readWg.Go(func() {
 			mw.ActiveReaders.Add(1)
@@ -88,7 +88,7 @@ func main() {
 	var insertWg sync.WaitGroup
 	mw.ActiveInserters.Store(int64(config.Insert.Threads))
 	for i := range config.Insert.Threads {
-		w := newInsertWorker(i, config, blockPool, blockQueue, &mw.InsertRowsPerSecond, &mw.InsertBytesPerSecond)
+		w := newInsertWorker(i, config, blockPool, insertQueue, &mw.InsertRowsPerSecond, &mw.InsertBytesPerSecond)
 		insertWorkers = append(insertWorkers, w)
 		insertWg.Go(func() {
 			w.start()
@@ -108,7 +108,7 @@ func main() {
 	}
 
 	readWg.Wait()
-	close(blockQueue)
+	close(insertQueue)
 	insertWg.Wait()
 
 	fmt.Println("done")

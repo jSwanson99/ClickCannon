@@ -18,14 +18,14 @@ type insertWorker struct {
 	chConfig *ClickHouseConfig
 	table    string
 
-	blockPool  *StructPool[SharedColumns]
-	blockQueue <-chan SharedColumns
+	blockPool   *StructPool[SharedColumns]
+	insertQueue <-chan SharedColumns
 
 	totalRows  *atomic.Int64
 	totalBytes *atomic.Int64
 }
 
-func newInsertWorker(id int, config *Config, blockPool *StructPool[SharedColumns], blockQueue <-chan SharedColumns, totalRows, totalBytes *atomic.Int64) *insertWorker {
+func newInsertWorker(id int, config *Config, blockPool *StructPool[SharedColumns], insertQueue <-chan SharedColumns, totalRows, totalBytes *atomic.Int64) *insertWorker {
 	w := insertWorker{
 		id:               id,
 		maxRowsPerInsert: config.Insert.MaxRowsPerInsert,
@@ -33,8 +33,8 @@ func newInsertWorker(id int, config *Config, blockPool *StructPool[SharedColumns
 		chConfig: &config.Insert.ClickHouse,
 		table:    config.GetInsertTable(),
 
-		blockPool:  blockPool,
-		blockQueue: blockQueue,
+		blockPool:   blockPool,
+		insertQueue: insertQueue,
 
 		totalRows:  totalRows,
 		totalBytes: totalBytes,
@@ -81,7 +81,7 @@ func (w *insertWorker) start() {
 		var currentInput proto.Input
 		rowCount := 0
 
-		currentBlock, ok := <-w.blockQueue
+		currentBlock, ok := <-w.insertQueue
 		if !ok {
 			break
 		}
@@ -105,7 +105,7 @@ func (w *insertWorker) start() {
 
 				if currentBlock == nil {
 					select {
-					case nextBlock, ok := <-w.blockQueue:
+					case nextBlock, ok := <-w.insertQueue:
 						if !ok {
 							return io.EOF
 						}

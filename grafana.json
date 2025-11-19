@@ -245,11 +245,87 @@
           },
           "pluginVersion": "4.10.2",
           "queryType": "table",
-          "rawSql": "SELECT quantile(0.5)(insert_bytes) FROM otelspam.perf WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)",
+          "rawSql": "SELECT quantile(0.5)(read_bytes_uncompressed) FROM otelspam.perf WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)",
           "refId": "A"
         }
       ],
-      "title": "Avg Bytes Per Second",
+      "title": "Avg Uncompressed Bytes Per Second",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "${chds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 10,
+        "y": 0
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0-pre",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "${chds}"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.2",
+          "queryType": "table",
+          "rawSql": "SELECT quantile(0.5)(read_bytes_compressed) FROM otelspam.perf WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Compressed Bytes Per Second",
       "type": "stat"
     },
     {
@@ -279,7 +355,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 10,
+        "x": 14,
         "y": 0
       },
       "id": 7,
@@ -391,8 +467,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 10,
-        "x": 14,
+        "w": 6,
+        "x": 18,
         "y": 0
       },
       "id": 3,
@@ -539,7 +615,7 @@
           },
           "pluginVersion": "4.10.2",
           "queryType": "table",
-          "rawSql": "SELECT timestamp, target_bytes_per_second as target_bytes, read_bytes, insert_bytes FROM otelspam.perf WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)",
+          "rawSql": "SELECT timestamp, target_bytes_per_second as target_bytes, read_bytes_uncompressed, read_bytes_compressed, insert_bytes FROM otelspam.perf WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)",
           "refId": "A"
         }
       ],
@@ -724,7 +800,7 @@
           },
           "pluginVersion": "4.10.2",
           "queryType": "table",
-          "rawSql": "SELECT timestamp, total_bytes FROM otelspam.perf WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)",
+          "rawSql": "SELECT timestamp, total_bytes_uncompressed, total_bytes_compressed FROM otelspam.perf WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)",
           "refId": "A"
         }
       ],
@@ -828,8 +904,8 @@
       },
       {
         "current": {
-          "text": "2e7a5e50-c190-11f0-b30b-060f91b19e3d",
-          "value": "2e7a5e50-c190-11f0-b30b-060f91b19e3d"
+          "text": "4fd6af81-c40b-11f0-b051-060f91b19e3d",
+          "value": "4fd6af81-c40b-11f0-b051-060f91b19e3d"
         },
         "datasource": {
           "type": "grafana-clickhouse-datasource",
@@ -848,8 +924,8 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": "1763148546000",
-          "value": "1763148546000"
+          "text": "1763421332000",
+          "value": "1763421332000"
         },
         "datasource": {
           "type": "grafana-clickhouse-datasource",
@@ -866,8 +942,8 @@
       },
       {
         "current": {
-          "text": "1763148648000",
-          "value": "1763148648000"
+          "text": "1763465110000",
+          "value": "1763465110000"
         },
         "datasource": {
           "type": "grafana-clickhouse-datasource",
@@ -892,5 +968,5 @@
   "timezone": "browser",
   "title": "OTel Spam",
   "uid": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-  "version": 21
+  "version": 24
 }

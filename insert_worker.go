@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
+	"log"
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
@@ -50,6 +51,9 @@ func (w *insertWorker) start() {
 		Password:   w.chConfig.Password,
 		Database:   w.chConfig.Database,
 		ClientName: "otelspam",
+		Settings: []ch.Setting{
+			{Key: "insert_deduplicate", Value: "0"},
+		},
 	}
 
 	if w.chConfig.Secure {
@@ -107,10 +111,12 @@ func (w *insertWorker) start() {
 					select {
 					case nextBlock, ok := <-w.insertQueue:
 						if !ok {
+							log.Println("closing insert, channel not ok. rows:", rowCount)
 							return io.EOF
 						}
 						currentBlock = nextBlock
 					default:
+						log.Println("closing insert, no block available. rows:", rowCount)
 						return io.EOF
 					}
 				}

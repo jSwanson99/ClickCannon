@@ -65,6 +65,11 @@ type windowEntry struct {
 	bytes     int
 }
 
+const DEFAULT_LIMIT_FACTOR = 1
+const DEFAULT_LEARN_RATE = 0.1
+const DEFAULT_MOMENTUM = 0.9
+const DEFAULT_BURST_FACTOR = 0.01
+
 func NewSpeedLimitedReader(r io.Reader, bytesPerSecond float64, totalBytes *atomic.Int64) *SpeedLimitedReader {
 	windowSize := 1 * time.Second
 
@@ -72,17 +77,17 @@ func NewSpeedLimitedReader(r io.Reader, bytesPerSecond float64, totalBytes *atom
 		exit:              make(chan struct{}),
 		reader:            r,
 		targetBytesPerSec: bytesPerSecond,
-		currentLimit:      bytesPerSecond,
+		currentLimit:      bytesPerSecond * DEFAULT_LIMIT_FACTOR,
 		window:            NewSlidingWindow(windowSize),
 		windowSize:        windowSize,
-		learningRate:      0.1,
-		momentum:          0.9,
+		learningRate:      DEFAULT_LEARN_RATE,
+		momentum:          DEFAULT_MOMENTUM,
 		lastGradient:      0,
-		burstCapacity:     bytesPerSecond * 0.1,
-		burstTokens:       bytesPerSecond * 0.1,
+		burstCapacity:     bytesPerSecond * DEFAULT_BURST_FACTOR,
+		burstTokens:       bytesPerSecond * DEFAULT_BURST_FACTOR,
 		lastTokenFill:     time.Now(),
 		smoothingFactor:   0.95,
-		minChunkSize:      4096,
+		minChunkSize:      32768,
 		totalBytes:        totalBytes,
 		lastReadTime:      time.Now(),
 	}
@@ -180,7 +185,7 @@ func (slr *SpeedLimitedReader) calculateWaitTime(bytesNeeded int) time.Duration 
 func (slr *SpeedLimitedReader) optimizationLoop() {
 	for {
 		select {
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(500 * time.Millisecond):
 			slr.optimizeLimit()
 		case <-slr.exit:
 			return
@@ -212,13 +217,13 @@ func (slr *SpeedLimitedReader) Reset(bytesPerSec float64) {
 	defer slr.mu.Unlock()
 
 	slr.targetBytesPerSec = bytesPerSec
-	slr.currentLimit = bytesPerSec
+	slr.currentLimit = bytesPerSec * DEFAULT_LIMIT_FACTOR
 	slr.window = NewSlidingWindow(slr.windowSize)
-	slr.learningRate = 0.1
-	slr.momentum = 0.9
+	slr.learningRate = DEFAULT_LEARN_RATE
+	slr.momentum = DEFAULT_MOMENTUM
 	slr.lastGradient = 0
-	slr.burstCapacity = bytesPerSec * 0.1
-	slr.burstTokens = bytesPerSec * 0.1
+	slr.burstCapacity = bytesPerSec * DEFAULT_BURST_FACTOR
+	slr.burstTokens = bytesPerSec * DEFAULT_BURST_FACTOR
 	slr.lastTokenFill = time.Now()
 }
 

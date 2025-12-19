@@ -86,7 +86,7 @@ func (w *readWorker) start(ctx context.Context) {
 		defer zstdRd.Close()
 		optReader = zstdRd
 	}
-
+	optReader = bufio.NewReaderSize(optReader, 32*1024)
 	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, w.totalBytesUncompressed)
 	defer w.speedRd.Close()
 

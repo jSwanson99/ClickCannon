@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -45,7 +46,7 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond int64, clickh
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect: %w", err)
 		}
-		fmt.Println("metrics clickhouse connected")
+		log.Println("metrics clickhouse connected")
 
 		err = w.conn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %q", metricsDatabase))
 		if err != nil {
@@ -100,7 +101,7 @@ func (w *metricsWorker) start(ctx context.Context) {
 			totalCompressedBytes += readCompressedBytesPerSecond
 			totalUncompressedBytes += readUncompressedBytesPerSecond
 
-			fmt.Printf("Read(%d) %s rows/s %s/s (%s/s compressed), Insert(%d) %s rows/s %s/s, Total %s rows %s (%s compressed)\n",
+			log.Printf("Read(%d) %s rows/s %s/s (%s/s compressed), Insert(%d) %s rows/s %s/s, Total %s rows %s (%s compressed)\n",
 				activeReaders,
 				FormatNumber(readRowsPerSecond),
 				FormatBytes(readUncompressedBytesPerSecond),
@@ -128,7 +129,7 @@ func (w *metricsWorker) start(ctx context.Context) {
 					activeReaders, activeInserters,
 				)
 				if err != nil {
-					fmt.Println(fmt.Errorf("failed to send metrics: %w", err))
+					log.Println(fmt.Errorf("failed to send metrics: %w", err))
 				}
 			}
 		case <-ctx.Done():

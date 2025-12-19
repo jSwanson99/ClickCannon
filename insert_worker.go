@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"sync/atomic"
+	"time"
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
@@ -148,8 +149,8 @@ func (w *insertWorker) start() {
 							return io.EOF
 						}
 						currentBlock = nextBlock
-					default:
-						w.log("closing insert, no block available. rows: %d\n", rowCount)
+					case <-time.After(10 * time.Second):
+						w.log("closing insert, no block available after timeout. rows: %d\n", rowCount)
 						return io.EOF
 					}
 				}

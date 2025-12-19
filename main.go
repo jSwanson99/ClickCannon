@@ -84,11 +84,20 @@ func main() {
 		})
 	})
 
+	var nodeBalancer *NodeBalancer
+	if config.Insert.BalanceNodes {
+		nodeBalancer = newNodeBalancer(&config.Insert.ClickHouse)
+		err = nodeBalancer.FetchNodes()
+		if err != nil {
+			panic(fmt.Errorf("failed to fetch nodes for node balancer: %w", err))
+		}
+	}
+
 	insertWorkers := make([]*insertWorker, 0, config.Insert.Threads)
 	var insertWg sync.WaitGroup
 	mw.ActiveInserters.Store(int64(config.Insert.Threads))
 	for i := range config.Insert.Threads {
-		w := newInsertWorker(i, config, blockPool, insertQueue, &mw.InsertRowsPerSecond, &mw.InsertBytesPerSecond)
+		w := newInsertWorker(i, config, nodeBalancer, blockPool, insertQueue, &mw.InsertRowsPerSecond, &mw.InsertBytesPerSecond)
 		insertWorkers = append(insertWorkers, w)
 		insertWg.Go(func() {
 			w.start()

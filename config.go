@@ -34,6 +34,10 @@ type Config struct {
 		// an exact limit.
 		MaxRowsPerInsert int `yaml:"max_rows_per_insert"`
 
+		// Distributes the connections across the cluster nodes.
+		// Requires multiple reconnects for hosts hidden behind a load balancer.
+		BalanceNodes bool `yaml:"balance_nodes"`
+
 		ClickHouse ClickHouseConfig `yaml:"clickhouse"`
 	} `yaml:"insert"`
 	Metrics struct {

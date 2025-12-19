@@ -20,6 +20,9 @@ insert:
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
   # an exact limit.
   max_rows_per_insert: 100000
+  # Distributes the connections across the cluster nodes.
+  # Requires multiple reconnects for hosts hidden behind a load balancer.
+  balance_nodes: false
   # ClickHouse connection settings
   clickhouse:
     address: localhost:9000

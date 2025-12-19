@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
-	"sync/atomic"
 	"log"
+	"sync/atomic"
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
@@ -19,6 +20,8 @@ type insertWorker struct {
 	chConfig *ClickHouseConfig
 	table    string
 
+	nodeBalancer *NodeBalancer
+
 	blockPool   *StructPool[SharedColumns]
 	insertQueue <-chan SharedColumns
 
@@ -26,10 +29,12 @@ type insertWorker struct {
 	totalBytes *atomic.Int64
 }
 
-func newInsertWorker(id int, config *Config, blockPool *StructPool[SharedColumns], insertQueue <-chan SharedColumns, totalRows, totalBytes *atomic.Int64) *insertWorker {
+func newInsertWorker(id int, config *Config, nodeBalancer *NodeBalancer, blockPool *StructPool[SharedColumns], insertQueue <-chan SharedColumns, totalRows, totalBytes *atomic.Int64) *insertWorker {
 	w := insertWorker{
 		id:               id,
 		maxRowsPerInsert: config.Insert.MaxRowsPerInsert,
+
+		nodeBalancer: nodeBalancer,
 
 		chConfig: &config.Insert.ClickHouse,
 		table:    config.GetInsertTable(),
@@ -45,6 +50,8 @@ func newInsertWorker(id int, config *Config, blockPool *StructPool[SharedColumns
 }
 
 func (w *insertWorker) start() {
+	defer w.log("exiting")
+
 	chOpts := ch.Options{
 		Address:    w.chConfig.Address,
 		User:       w.chConfig.User,
@@ -64,14 +71,40 @@ func (w *insertWorker) start() {
 		chOpts.Compression, _ = ch.CompressionString(w.chConfig.Compression)
 	}
 
-	c, err := ch.Dial(context.Background(), chOpts)
-	if err != nil {
-		panic(err)
+	var c *ch.Client
+	var hostIP string
+	for i := 0; i < 100; i++ {
+		var err error
+		c, err = ch.Dial(context.Background(), chOpts)
+		if err != nil {
+			w.logErr(fmt.Errorf("failed to dial: %w", err))
+			continue
+		}
+
+		hostIP, err = w.getNode(c)
+		if err != nil {
+			w.logErr(err)
+			if closeErr := c.Close(); closeErr != nil {
+				w.logErr(fmt.Errorf("failed to close: %w", closeErr))
+			}
+			continue
+		}
+
+		if w.nodeBalancer == nil || w.nodeBalancer.IsNextNode(hostIP) {
+			break
+		}
+
+		w.log("incorrect node IP %s in sequence, reconnecting...", hostIP)
+		if closeErr := c.Close(); closeErr != nil {
+			w.logErr(fmt.Errorf("failed to close: %w", closeErr))
+		}
 	}
+	w.log("Host IP: %s", hostIP)
+
 	defer func(c *ch.Client) {
 		closeErr := c.Close()
 		if closeErr != nil {
-			panic(closeErr)
+			w.logErr(fmt.Errorf("failed to close: %w", closeErr))
 		}
 	}(c)
 
@@ -111,12 +144,12 @@ func (w *insertWorker) start() {
 					select {
 					case nextBlock, ok := <-w.insertQueue:
 						if !ok {
-							log.Println("closing insert, channel not ok. rows:", rowCount)
+							w.log("closing insert, channel not ok. rows: %d\n", rowCount)
 							return io.EOF
 						}
 						currentBlock = nextBlock
 					default:
-						log.Println("closing insert, no block available. rows:", rowCount)
+						w.log("closing insert, no block available. rows: %d\n", rowCount)
 						return io.EOF
 					}
 				}
@@ -151,11 +184,44 @@ func (w *insertWorker) start() {
 				return nil
 			},
 		}); err != nil {
-			panic(err)
+			w.logErr(fmt.Errorf("failed to insert: %w", err))
 		}
 
 		w.blockPool.Release(insertBlock)
 	}
+}
+
+func (w *insertWorker) getNode(c *ch.Client) (string, error) {
+	sql := `SELECT host_address FROM system.clusters WHERE cluster='default' AND is_local=1`
+
+	var data proto.ColStr
+	if err := c.Do(context.Background(), ch.Query{
+		Body: sql,
+		Result: proto.Results{
+			{Name: "host_address", Data: &data},
+		},
+	}); err != nil {
+		return "", fmt.Errorf("failed to query current node: %w", err)
+	}
+
+	if data.Rows() == 0 {
+		return "", errors.New("no rows returned for current node IP")
+	}
+
+	hostIP := data.First()
+	if hostIP == "" {
+		return "", errors.New("empty result for current node IP")
+	}
+
+	return hostIP, nil
+}
+
+func (w *insertWorker) log(fmtStr string, args ...any) {
+	log.Printf("[Insert Worker %d] %s\n", w.id, fmt.Sprintf(fmtStr, args...))
+}
+
+func (w *insertWorker) logErr(err error) {
+	log.Printf("[Insert Worker %d | error] %s\n", w.id, err.Error())
 }
 
 // swapInput temporarily swaps the column data within a proto.Input.

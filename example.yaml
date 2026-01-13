@@ -37,6 +37,12 @@ insert:
     logs_table: otel_logs
     traces_table: otel_traces
 
+user:
+  threads: 10
+  connections_per_user: 5
+  min_query_wait: 1s
+  max_query_wait: 10s
+
 # Settings related to the program's read/insert metrics
 metrics:
   # ClickHouse DSN URL, same as OTel exporter. Optional, if empty then metrics won't be stored.

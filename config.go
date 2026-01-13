@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/goccy/go-yaml"
@@ -40,6 +41,15 @@ type Config struct {
 
 		ClickHouse ClickHouseConfig `yaml:"clickhouse"`
 	} `yaml:"insert"`
+
+	User struct {
+		// How many "users" to simulate (one user per thread)
+		Threads            int           `yaml:"threads"`
+		ConnectionsPerUser int           `yaml:"connections_per_user"`
+		MinQueryWait       time.Duration `yaml:"min_query_wait"`
+		MaxQueryWait       time.Duration `yaml:"max_query_wait"`
+	}
+
 	Metrics struct {
 		ClickHouseDSN string `yaml:"clickhouse_dsn"`
 		Database      string `yaml:"database"`
@@ -83,6 +93,10 @@ func (c *Config) GetInsertTable() string {
 	}
 }
 
+func (c *Config) IsLogsData() bool {
+	return c.Read.DataType == ConfigDataTypeLogs
+}
+
 func (c *Config) Validate() error {
 	if c.Read.DataType == "" || (c.Read.DataType != ConfigDataTypeLogs && c.Read.DataType != ConfigDataTypeTraces) {
 		return errors.New("must set read.data_type in config to one of: logs, traces")
@@ -94,7 +108,7 @@ func (c *Config) Validate() error {
 		return errors.New("must set read.traces_path in config for reading traces")
 	}
 
-	if c.Read.Threads == 0 {
+	if c.Read.Threads <= 0 {
 		return errors.New("must set read.threads in config")
 	}
 
@@ -102,7 +116,7 @@ func (c *Config) Validate() error {
 		return errors.New("must set read.mb_per_second_limit in config to a non-zero value")
 	}
 
-	if c.Insert.Threads == 0 {
+	if c.Insert.Threads <= 0 {
 		return errors.New("must set insert.threads in config")
 	}
 
@@ -128,6 +142,19 @@ func (c *Config) Validate() error {
 		return errors.New("must set insert.clickhouse.logs_table in config for inserting logs")
 	} else if c.Read.DataType == ConfigDataTypeTraces && c.Insert.ClickHouse.TracesTable == "" {
 		return errors.New("must set insert.clickhouse.traces_table in config for inserting traces")
+	}
+
+	if c.User.MinQueryWait < 0 {
+		return errors.New("must set user.min_query_wait to a non-negative value")
+	}
+	if c.User.MaxQueryWait < time.Millisecond {
+		return errors.New("must set user.max_query_wait to a duration higher than 1ms")
+	}
+	if c.User.MinQueryWait > c.User.MaxQueryWait {
+		return errors.New("must set user.max_query_wait to a value higher than user.min_query_wait")
+	}
+	if c.User.ConnectionsPerUser <= 0 {
+		return errors.New("must set user.connections_per_user to a value above 0")
 	}
 
 	if c.Metrics.ClickHouseDSN != "" {

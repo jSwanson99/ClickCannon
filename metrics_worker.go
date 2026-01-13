@@ -27,6 +27,8 @@ type metricsWorker struct {
 	InsertBytesPerSecond           atomic.Int64
 	ActiveReaders                  atomic.Int64
 	ActiveInserters                atomic.Int64
+	ActiveUsers                    atomic.Int64
+	UserQueriesPerSecond           atomic.Int64
 }
 
 func newMetricsWorker(runID, dataType string, targetBytesPerSecond int64, clickhouseDSN, metricsDatabase, metricsTable string) (*metricsWorker, error) {
@@ -92,6 +94,8 @@ func (w *metricsWorker) start(ctx context.Context) {
 			now := time.Now()
 			activeReaders := w.ActiveReaders.Load()
 			activeInserters := w.ActiveInserters.Load()
+			activeUsers := w.ActiveUsers.Load()
+			userQueriesPerSecond := w.UserQueriesPerSecond.Load()
 			readRowsPerSecond := w.ReadRowsPerSecond.Load()
 			readCompressedBytesPerSecond := w.ReadCompressedBytesPerSecond.Load()
 			readUncompressedBytesPerSecond := w.ReadUncompressedBytesPerSecond.Load()
@@ -101,7 +105,7 @@ func (w *metricsWorker) start(ctx context.Context) {
 			totalCompressedBytes += readCompressedBytesPerSecond
 			totalUncompressedBytes += readUncompressedBytesPerSecond
 
-			log.Printf("Read(%d) %s rows/s %s/s (%s/s compressed), Insert(%d) %s rows/s %s/s, Total %s rows %s (%s compressed)\n",
+			log.Printf("Read(%d) %s rows/s %s/s (%s/s compressed), Insert(%d) %s rows/s %s/s, Total %s rows %s (%s compressed) Queries(%d) %s/s\n",
 				activeReaders,
 				FormatNumber(readRowsPerSecond),
 				FormatBytes(readUncompressedBytesPerSecond),
@@ -112,6 +116,8 @@ func (w *metricsWorker) start(ctx context.Context) {
 				FormatNumber(totalRows),
 				FormatBytes(totalUncompressedBytes),
 				FormatBytes(totalCompressedBytes),
+				activeUsers,
+				FormatNumber(userQueriesPerSecond),
 			)
 
 			w.ReadRowsPerSecond.Store(0)
@@ -119,6 +125,7 @@ func (w *metricsWorker) start(ctx context.Context) {
 			w.ReadUncompressedBytesPerSecond.Store(0)
 			w.InsertRowsPerSecond.Store(0)
 			w.InsertBytesPerSecond.Store(0)
+			w.UserQueriesPerSecond.Store(0)
 
 			if w.insertSQL != "" {
 				err := w.conn.Exec(context.Background(), w.insertSQL,

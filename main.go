@@ -105,6 +105,24 @@ func main() {
 	}
 	fmt.Printf("started %d insert workers\n", config.Insert.Threads)
 
+	userWorkers := make([]*userWorker, 0, config.User.Threads)
+	var userWg sync.WaitGroup
+	mw.ActiveUsers.Store(int64(config.User.Threads))
+	for i := range config.User.Threads {
+		w, wErr := newUserWorker(runID.String(), i, config, &mw.UserQueriesPerSecond)
+		if wErr != nil {
+			panic(fmt.Errorf("failed to start user worker at index %d: %w", i, wErr))
+		}
+
+		userWorkers = append(userWorkers, w)
+		userWg.Go(func() {
+			w.start(readCtx)
+			w.stop()
+			mw.ActiveUsers.Add(-1)
+		})
+	}
+	fmt.Printf("started %d user workers\n", config.User.Threads)
+
 	go speedController(readCtx, bytesPerSecond, &readWorkers, &mw.ActiveReaders)
 	go mw.start(readCtx)
 

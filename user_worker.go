@@ -1,0 +1,114 @@
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"hash/crc64"
+	"log"
+	"math/rand/v2"
+	"sync/atomic"
+	"time"
+
+	"github.com/ClickHouse/clickhouse-go/v2"
+)
+
+func newRand(runID string, workerID int) *rand.Rand {
+	crc := crc64.Checksum([]byte(runID), crc64.MakeTable(crc64.ISO))
+	return rand.New(rand.NewPCG(crc, uint64(workerID)))
+}
+
+type userWorker struct {
+	id int
+	r  *rand.Rand
+
+	chConfig *ClickHouseConfig
+	isLogs   bool
+	database string
+	table    string
+
+	client clickhouse.Conn
+
+	minQueryWait time.Duration
+	maxQueryWait time.Duration
+
+	totalQueries *atomic.Int64
+}
+
+func newUserWorker(testID string, id int, config *Config, totalQueries *atomic.Int64) (*userWorker, error) {
+	w := userWorker{
+		id: id,
+		r:  newRand(testID, id),
+
+		chConfig: &config.Insert.ClickHouse,
+		isLogs:   config.IsLogsData(),
+		database: config.Insert.ClickHouse.Database,
+		table:    config.GetInsertTable(),
+
+		minQueryWait: config.User.MinQueryWait,
+		maxQueryWait: config.User.MaxQueryWait,
+
+		totalQueries: totalQueries,
+	}
+
+	opt := clickhouse.Options{
+		Addr: []string{config.Insert.ClickHouse.Address},
+		Auth: clickhouse.Auth{
+			Username: config.Insert.ClickHouse.User,
+			Password: config.Insert.ClickHouse.Password,
+		},
+		MaxIdleConns: config.User.ConnectionsPerUser,
+		MaxOpenConns: config.User.ConnectionsPerUser + 5,
+	}
+	if config.Insert.ClickHouse.Secure {
+		opt.TLS = &tls.Config{}
+	}
+
+	conn, err := clickhouse.Open(&opt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect: %w", err)
+	}
+	w.client = conn
+
+	return &w, nil
+}
+
+func (w *userWorker) start(ctx context.Context) {
+	for ctx.Err() == nil {
+		upper := w.maxQueryWait.Milliseconds() - w.minQueryWait.Milliseconds()
+		rVal := w.r.Int64N(upper)
+		//w.log("rand: %d total: %d", rVal, w.minQueryWait.Milliseconds()+rVal)
+		time.Sleep(time.Millisecond * (time.Duration(w.minQueryWait.Milliseconds()) + time.Duration(rVal)))
+
+		sql := `SELECT 1 FORMAT Null`
+
+		//now := time.Now()
+		err := w.client.Exec(ctx, sql)
+		if err != nil {
+			w.logErr(fmt.Errorf("failed to run query: %w", err))
+			continue
+		}
+
+		//w.log("ran query in %s", time.Since(now))
+
+		w.totalQueries.Add(1)
+	}
+}
+
+func (w *userWorker) stop() {
+	w.log("stopping")
+
+	if w.client != nil {
+		if err := w.client.Close(); err != nil {
+			w.logErr(err)
+		}
+	}
+}
+
+func (w *userWorker) log(fmtStr string, args ...any) {
+	log.Printf("[User Worker %d] %s\n", w.id, fmt.Sprintf(fmtStr, args...))
+}
+
+func (w *userWorker) logErr(err error) {
+	log.Printf("[User Worker %d | error] %s\n", w.id, err.Error())
+}

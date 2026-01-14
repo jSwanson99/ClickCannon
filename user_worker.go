@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"sync/atomic"
+	"text/template"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -22,10 +24,13 @@ type userWorker struct {
 	id int
 	r  *rand.Rand
 
-	chConfig *ClickHouseConfig
-	isLogs   bool
-	database string
-	table    string
+	index int
+
+	userConfig *UserConfig
+	chConfig   *ClickHouseConfig
+	isLogs     bool
+	database   string
+	table      string
 
 	client clickhouse.Conn
 
@@ -40,10 +45,11 @@ func newUserWorker(testID string, id int, config *Config, totalQueries *atomic.I
 		id: id,
 		r:  newRand(testID, id),
 
-		chConfig: &config.Insert.ClickHouse,
-		isLogs:   config.IsLogsData(),
-		database: config.Insert.ClickHouse.Database,
-		table:    config.GetInsertTable(),
+		userConfig: &config.User,
+		chConfig:   &config.Insert.ClickHouse,
+		isLogs:     config.IsLogsData(),
+		database:   config.Insert.ClickHouse.Database,
+		table:      config.GetInsertTable(),
 
 		minQueryWait: config.User.MinQueryWait,
 		maxQueryWait: config.User.MaxQueryWait,
@@ -80,19 +86,56 @@ func (w *userWorker) start(ctx context.Context) {
 		//w.log("rand: %d total: %d", rVal, w.minQueryWait.Milliseconds()+rVal)
 		time.Sleep(time.Millisecond * (time.Duration(w.minQueryWait.Milliseconds()) + time.Duration(rVal)))
 
-		sql := `SELECT 1 FORMAT Null`
+		sql := w.getNextSQL()
 
-		//now := time.Now()
+		now := time.Now()
 		err := w.client.Exec(ctx, sql)
 		if err != nil {
 			w.logErr(fmt.Errorf("failed to run query: %w", err))
 			continue
 		}
 
-		//w.log("ran query in %s", time.Since(now))
+		w.log("ran query in %s (%s)", time.Since(now), sql)
 
 		w.totalQueries.Add(1)
+		w.index++
 	}
+}
+
+type SQLTemplateParams struct {
+	Table          string
+	TimeRangeStart string
+	TimeRangeEnd   string
+}
+
+func (w *userWorker) getNextSQL() string {
+	queryIndex := w.index % len(w.userConfig.Queries)
+	query := w.userConfig.Queries[queryIndex]
+	sqlTemplate := query.SQL
+
+	tmpl, err := template.New("sql").Parse(sqlTemplate)
+	if err != nil {
+		panic(fmt.Errorf("failed to parse query template at query index %d: %w", queryIndex, err))
+	}
+
+	end := time.Now()
+	start := end.Add(-query.TimeRange)
+	params := SQLTemplateParams{
+		Table:          fmt.Sprintf(`%q.%q`, w.database, w.table),
+		TimeRangeStart: fmt.Sprintf("fromUnixTimestamp64Milli(%d)", start.UnixMilli()),
+		TimeRangeEnd:   fmt.Sprintf("fromUnixTimestamp64Milli(%d)", end.UnixMilli()),
+	}
+
+	var sqlOutput bytes.Buffer
+	err = tmpl.Execute(&sqlOutput, params)
+	if err != nil {
+		panic(fmt.Errorf("failed to execute query template at query index %d: %w", queryIndex, err))
+	}
+
+	sqlOutput.WriteByte(' ')
+	sqlOutput.WriteString("Format Null")
+
+	return sqlOutput.String()
 }
 
 func (w *userWorker) stop() {

@@ -47,13 +47,7 @@ type Config struct {
 		ClickHouse ClickHouseConfig `yaml:"clickhouse"`
 	} `yaml:"insert"`
 
-	User struct {
-		// How many "users" to simulate (one user per thread)
-		Threads            int           `yaml:"threads"`
-		ConnectionsPerUser int           `yaml:"connections_per_user"`
-		MinQueryWait       time.Duration `yaml:"min_query_wait"`
-		MaxQueryWait       time.Duration `yaml:"max_query_wait"`
-	}
+	User UserConfig `yaml:"user"`
 
 	Metrics struct {
 		ClickHouseDSN string `yaml:"clickhouse_dsn"`
@@ -74,6 +68,20 @@ type ClickHouseConfig struct {
 	Database    string `yaml:"database"`
 	LogsTable   string `yaml:"logs_table"`
 	TracesTable string `yaml:"traces_table"`
+}
+
+type UserConfig struct {
+	// How many "users" to simulate (one user per thread)
+	Threads            int               `yaml:"threads"`
+	ConnectionsPerUser int               `yaml:"connections_per_user"`
+	MinQueryWait       time.Duration     `yaml:"min_query_wait"`
+	MaxQueryWait       time.Duration     `yaml:"max_query_wait"`
+	Queries            []UserQueryConfig `yaml:"queries"`
+}
+
+type UserQueryConfig struct {
+	SQL       string        `yaml:"sql"`
+	TimeRange time.Duration `yaml:"time_range"`
 }
 
 func (c *Config) GetDataFolder() string {
@@ -166,6 +174,12 @@ func (c *Config) Validate() error {
 	}
 	if c.User.ConnectionsPerUser <= 0 {
 		return errors.New("must set user.connections_per_user to a value above 0")
+	}
+
+	for i, query := range c.User.Queries {
+		if query.SQL == "" {
+			return fmt.Errorf("user.queries[%d] SQL is empty", i)
+		}
 	}
 
 	if c.Metrics.ClickHouseDSN != "" {

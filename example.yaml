@@ -11,6 +11,12 @@ read:
   mb_per_second_limit: 2048
   # Set to true if you're only testing read performance off of disk, this will not send data to the insert queue
   passthrough: false
+  # Shifts the timestamp of the data when reading from disk.
+  # Options: <empty>, none, date, all.
+  # Empty/"none" will do nothing and replay the data as it is written on disk.
+  # "date" will replace only the date component with the current date.
+  # "all" will shift the entire timestamp to the current time, relative to the first timestamp in the file.
+  shift_timestamp: all
 
 
 insert:

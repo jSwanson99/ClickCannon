@@ -14,6 +14,10 @@ import (
 const ConfigDataTypeLogs = "logs"
 const ConfigDataTypeTraces = "traces"
 
+const ConfigShiftTimestampNone = "none" // Does not shift input data timestamp, replays data as written.
+const ConfigShiftTimestampDate = "date" // Shifts only the date of the input data's timestamp to be relative to the current date.
+const ConfigShiftTimestampAll = "all"   // Shifts the input data's timestamp to be relative to the current time.
+
 type Config struct {
 	Read struct {
 		DataType   string `yaml:"data_type"`
@@ -24,7 +28,8 @@ type Config struct {
 		// How many MiB decompressed bytes per second can be read from disk
 		MiBytesPerSecondLimit int64 `yaml:"mb_per_second_limit"`
 		// Set to true if you're only testing read performance off of disk, this will not send data to the insert queue
-		Passthrough bool `yaml:"passthrough"`
+		Passthrough    bool   `yaml:"passthrough"`
+		ShiftTimestamp string `yaml:"shift_timestamp"`
 	} `yaml:"read"`
 
 	Insert struct {
@@ -114,6 +119,12 @@ func (c *Config) Validate() error {
 
 	if c.Read.MiBytesPerSecondLimit == 0 {
 		return errors.New("must set read.mb_per_second_limit in config to a non-zero value")
+	}
+
+	if c.Read.ShiftTimestamp == "" {
+		c.Read.ShiftTimestamp = ConfigShiftTimestampNone
+	} else if c.Read.ShiftTimestamp != ConfigShiftTimestampNone && c.Read.ShiftTimestamp != ConfigShiftTimestampDate && c.Read.ShiftTimestamp != ConfigShiftTimestampAll {
+		return errors.New("must set read.shift_timestamp in config to one of: <empty>, none, date, all")
 	}
 
 	if c.Insert.Threads <= 0 {

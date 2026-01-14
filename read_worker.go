@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"sync/atomic"
+	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/klauspost/compress/zstd"
@@ -19,6 +20,9 @@ type readWorker struct {
 	fileCompressed      bool
 	bytesPerSecondLimit float64
 	passthrough         bool
+	shiftTimestamp      string
+
+	firstTimestamp time.Time
 
 	speedRd *SpeedLimitedReader
 
@@ -30,13 +34,14 @@ type readWorker struct {
 	totalBytesUncompressed *atomic.Int64
 }
 
-func newReadWorker(id int, filePath string, fileCompressed bool, bytesPerSecondLimit float64, passthrough bool, blockPool *StructPool[SharedColumns], insertQueue chan<- SharedColumns, totalRows, totalBytesCompressed, totalBytesUncompressed *atomic.Int64) *readWorker {
+func newReadWorker(id int, shiftTimestamp string, filePath string, fileCompressed bool, bytesPerSecondLimit float64, passthrough bool, blockPool *StructPool[SharedColumns], insertQueue chan<- SharedColumns, totalRows, totalBytesCompressed, totalBytesUncompressed *atomic.Int64) *readWorker {
 	w := readWorker{
 		id:                  id,
 		filePath:            filePath,
 		fileCompressed:      fileCompressed,
 		bytesPerSecondLimit: bytesPerSecondLimit,
 		passthrough:         passthrough,
+		shiftTimestamp:      shiftTimestamp,
 
 		blockPool:   blockPool,
 		insertQueue: insertQueue,
@@ -103,7 +108,16 @@ func (w *readWorker) start(ctx context.Context) {
 			panic(err)
 		}
 
-		cols.UpdateDate()
+		switch w.shiftTimestamp {
+		case ConfigShiftTimestampDate:
+			cols.UpdateDate()
+		case ConfigShiftTimestampAll:
+			if w.firstTimestamp.IsZero() {
+				w.firstTimestamp = cols.FirstTimestamp()
+			}
+			
+			cols.UpdateTimestamp(w.firstTimestamp)
+		}
 
 		w.totalRows.Add(int64(colsRes.Rows()))
 

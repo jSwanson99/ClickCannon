@@ -15,6 +15,10 @@ type SharedColumns interface {
 	Input() proto.Input
 	// UpdateDate for shifting the date component on old data to today
 	UpdateDate()
+	// FirstTimestamp Returns the first timestamp in the block
+	FirstTimestamp() time.Time
+	// UpdateTimestamp for shifting the timestamp to be relative to current time
+	UpdateTimestamp(startTime time.Time)
 }
 
 type LogsSharedColumns struct {
@@ -147,6 +151,22 @@ func (c *LogsSharedColumns) UpdateDate() {
 	}
 }
 
+func (c *LogsSharedColumns) FirstTimestamp() time.Time {
+	if len(c.timestamp.Data) > 0 {
+		return c.timestamp.Data[0].Time(c.timestamp.Precision)
+	}
+
+	return time.Time{}
+}
+
+func (c *LogsSharedColumns) UpdateTimestamp(startTime time.Time) {
+	for i := range c.timestamp.Data {
+		shiftedTime := ShiftTimestamp(startTime, c.timestamp.Data[i].Time(c.timestamp.Precision))
+		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
+		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+	}
+}
+
 // ShiftDateToToday shifts the time.Time to current date without affecting time component
 func ShiftDateToToday(oldTime time.Time) time.Time {
 	now := time.Now()
@@ -166,6 +186,15 @@ func ShiftDateToToday(oldTime time.Time) time.Time {
 	)
 
 	return newTime
+}
+
+// ShiftTimestamp shifts the time.Time to be relative to the current time.
+// startTime is the reference point (first data point for the data set)
+// oldTime is the timestamp to shift
+func ShiftTimestamp(startTime, oldTime time.Time) time.Time {
+	now := time.Now()
+	offset := oldTime.Sub(startTime)
+	return now.Add(offset)
 }
 
 type TracesSharedColumns struct {
@@ -317,6 +346,22 @@ func (c *TracesSharedColumns) Input() proto.Input {
 func (c *TracesSharedColumns) UpdateDate() {
 	for i := range c.timestamp.Data {
 		shiftedTime := ShiftDateToToday(c.timestamp.Data[i].Time(c.timestamp.Precision))
+		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
+		// TODO: Events.Timestamp column?
+	}
+}
+
+func (c *TracesSharedColumns) FirstTimestamp() time.Time {
+	if len(c.timestamp.Data) > 0 {
+		return c.timestamp.Data[0].Time(c.timestamp.Precision)
+	}
+
+	return time.Time{}
+}
+
+func (c *TracesSharedColumns) UpdateTimestamp(startTime time.Time) {
+	for i := range c.timestamp.Data {
+		shiftedTime := ShiftTimestamp(startTime, c.timestamp.Data[i].Time(c.timestamp.Precision))
 		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
 		// TODO: Events.Timestamp column?
 	}

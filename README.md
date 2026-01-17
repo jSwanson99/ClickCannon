@@ -1,5 +1,5 @@
 # otelspam
-A program for replaying OTel data
+A program for replaying OTel data and simulating user queries
 
 ## Usage
 

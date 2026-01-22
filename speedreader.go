@@ -4,25 +4,24 @@ import (
 	"io"
 	"math"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 type SpeedReader struct {
-	reader io.Reader
-	count  *atomic.Int64
+	reader  io.Reader
+	onCount func(uint64)
 }
 
-func NewSpeedReader(r io.Reader, count *atomic.Int64) *SpeedReader {
+func NewSpeedReader(r io.Reader, onCount func(uint64)) *SpeedReader {
 	return &SpeedReader{
-		reader: r,
-		count:  count,
+		reader:  r,
+		onCount: onCount,
 	}
 }
 
 func (cr *SpeedReader) Read(p []byte) (n int, err error) {
 	n, err = cr.reader.Read(p)
-	cr.count.Add(int64(n))
+	cr.onCount(uint64(n))
 	return n, err
 }
 
@@ -42,7 +41,7 @@ type SpeedLimitedReader struct {
 	momentum     float64
 	lastGradient float64
 
-	totalBytes   *atomic.Int64
+	onCount      func(uint64)
 	lastReadTime time.Time
 
 	burstCapacity float64
@@ -70,7 +69,7 @@ const DEFAULT_LEARN_RATE = 0.1
 const DEFAULT_MOMENTUM = 0.9
 const DEFAULT_BURST_FACTOR = 0.01
 
-func NewSpeedLimitedReader(r io.Reader, bytesPerSecond float64, totalBytes *atomic.Int64) *SpeedLimitedReader {
+func NewSpeedLimitedReader(r io.Reader, bytesPerSecond float64, onCount func(uint64)) *SpeedLimitedReader {
 	windowSize := 1 * time.Second
 
 	slr := &SpeedLimitedReader{
@@ -88,7 +87,7 @@ func NewSpeedLimitedReader(r io.Reader, bytesPerSecond float64, totalBytes *atom
 		lastTokenFill:     time.Now(),
 		smoothingFactor:   0.95,
 		minChunkSize:      32768,
-		totalBytes:        totalBytes,
+		onCount:           onCount,
 		lastReadTime:      time.Now(),
 	}
 
@@ -125,7 +124,7 @@ func (slr *SpeedLimitedReader) Read(p []byte) (n int, err error) {
 
 	if n > 0 {
 		slr.window.Add(n, time.Now())
-		slr.totalBytes.Add(int64(n))
+		slr.onCount(uint64(n))
 
 		slr.mu.Lock()
 		slr.lastReadTime = time.Now()

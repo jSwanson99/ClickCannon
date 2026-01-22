@@ -75,4 +75,5 @@ metrics:
   clickhouse_dsn: tcp://localhost:9000
   # Database and table for capturing performance metrics, these are created automatically.
   database: otelspam
-  table: perf
+  run_table: runs
+  metrics_table: perf

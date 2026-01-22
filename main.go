@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -56,7 +55,7 @@ func main() {
 	fmt.Println("run ID:", runID.String())
 	fmt.Println("data type:", config.Read.DataType)
 	fmt.Println("speed limit:", FormatBytes(bytesPerSecond))
-	mw, err := newMetricsWorker(runID.String(), config.Read.DataType, bytesPerSecond, config.Metrics.ClickHouseDSN, config.Metrics.Database, config.Metrics.Table)
+	mw, err := newMetricsWorker(runID.String(), config.Read.DataType, bytesPerSecond, config.Metrics.ClickHouseDSN, config.Metrics.Database, config.Metrics.RunTable, config.Metrics.MetricsTable)
 	if err != nil {
 		panic(err)
 	}
@@ -69,16 +68,16 @@ func main() {
 	readCtx, cancelReaders := context.WithCancel(context.Background())
 	readWorkers := make([]*readWorker, 0, config.Read.Threads)
 	var readWg sync.WaitGroup
-	go readScheduler(readCtx, cancelReaders, &mw.ActiveReaders, otelFiles, readerDone, func(id int, f otelFile) {
+	go readScheduler(readCtx, cancelReaders, mw, otelFiles, readerDone, func(id int, f otelFile) {
 		w := newReadWorker(
 			id, config.Read.ShiftTimestamp, f.Path, f.Compressed,
-			bytesPerSecondPerWorker(bytesPerSecond, int64(config.Read.Threads)), config.Read.Passthrough,
-			blockPool, insertQueue, &mw.ReadRowsPerSecond, &mw.ReadCompressedBytesPerSecond, &mw.ReadUncompressedBytesPerSecond)
+			bytesPerSecondPerWorker(bytesPerSecond, uint64(config.Read.Threads)), config.Read.Passthrough,
+			blockPool, insertQueue, mw)
 		readWorkers = append(readWorkers, w)
 		readWg.Go(func() {
-			mw.ActiveReaders.Add(1)
+			mw.IncrementMetric(MetricNameActiveReaders, 1)
 			w.start(readCtx)
-			mw.ActiveReaders.Add(-1)
+			mw.DecrementMetric(MetricNameActiveReaders, 1)
 			<-readerDone
 		})
 	})
@@ -94,22 +93,22 @@ func main() {
 
 	insertWorkers := make([]*insertWorker, 0, config.Insert.Threads)
 	var insertWg sync.WaitGroup
-	mw.ActiveInserters.Store(int64(config.Insert.Threads))
+	mw.SetMetric(MetricNameActiveInserters, uint64(config.Insert.Threads))
 	for i := range config.Insert.Threads {
-		w := newInsertWorker(i, config, nodeBalancer, blockPool, insertQueue, &mw.InsertRowsPerSecond, &mw.InsertBytesPerSecond)
+		w := newInsertWorker(i, config, nodeBalancer, blockPool, insertQueue, mw)
 		insertWorkers = append(insertWorkers, w)
 		insertWg.Go(func() {
 			w.start()
-			mw.ActiveInserters.Add(-1)
+			mw.DecrementMetric(MetricNameActiveInserters, 1)
 		})
 	}
 	fmt.Printf("started %d insert workers\n", config.Insert.Threads)
 
 	userWorkers := make([]*userWorker, 0, config.User.Threads)
 	var userWg sync.WaitGroup
-	mw.ActiveUsers.Store(int64(config.User.Threads))
+	mw.SetMetric(MetricNameActiveUsers, uint64(config.User.Threads))
 	for i := range config.User.Threads {
-		w, wErr := newUserWorker(runID.String(), i, config, &mw.UserQueriesPerSecond)
+		w, wErr := newUserWorker(runID.String(), i, config, mw)
 		if wErr != nil {
 			panic(fmt.Errorf("failed to start user worker at index %d: %w", i, wErr))
 		}
@@ -118,12 +117,12 @@ func main() {
 		userWg.Go(func() {
 			w.start(readCtx)
 			w.stop()
-			mw.ActiveUsers.Add(-1)
+			mw.DecrementMetric(MetricNameActiveUsers, 1)
 		})
 	}
 	fmt.Printf("started %d user workers\n", config.User.Threads)
 
-	go speedController(readCtx, bytesPerSecond, &readWorkers, &mw.ActiveReaders)
+	go speedController(readCtx, bytesPerSecond, &readWorkers, mw)
 	go mw.start(readCtx)
 
 	select {
@@ -142,12 +141,12 @@ func main() {
 
 // speedController updates the speed limit across all read threads.
 // If there's 2 threads with a 1GB speed limit, each thread gets 512MB.
-func speedController(ctx context.Context, bytesPerSecond int64, readWorkers *[]*readWorker, activeReaders *atomic.Int64) {
+func speedController(ctx context.Context, bytesPerSecond uint64, readWorkers *[]*readWorker, metrics MetricsStore) {
 	lastLimit := float64(bytesPerSecond)
 	for {
 		select {
 		case <-time.After(500 * time.Millisecond):
-			bps := bytesPerSecondPerWorker(bytesPerSecond, activeReaders.Load())
+			bps := bytesPerSecondPerWorker(bytesPerSecond, metrics.GetMetric(MetricNameActiveReaders))
 			if math.Abs(lastLimit-bps) < 1.0 {
 				continue
 			}
@@ -163,7 +162,7 @@ func speedController(ctx context.Context, bytesPerSecond int64, readWorkers *[]*
 	}
 }
 
-func bytesPerSecondPerWorker(globalBytesPerSecond, activeReaders int64) float64 {
+func bytesPerSecondPerWorker(globalBytesPerSecond, activeReaders uint64) float64 {
 	return float64(globalBytesPerSecond) / float64(activeReaders)
 }
 
@@ -209,7 +208,7 @@ func getDataFiles(folderPath string) ([]otelFile, error) {
 	return files, nil
 }
 
-func readScheduler(ctx context.Context, cancelReaderCtx context.CancelFunc, activeReaders *atomic.Int64, files []otelFile, readerDone chan struct{}, startReader func(id int, f otelFile)) {
+func readScheduler(ctx context.Context, cancelReaderCtx context.CancelFunc, metrics MetricsStore, files []otelFile, readerDone chan struct{}, startReader func(id int, f otelFile)) {
 	for i := 0; i < len(files); i++ {
 		nextFile := files[i]
 		startReader(i, nextFile)
@@ -220,7 +219,7 @@ func readScheduler(ctx context.Context, cancelReaderCtx context.CancelFunc, acti
 	for {
 		select {
 		case <-time.After(1 * time.Second):
-			if activeReaders.Load() == 0 {
+			if metrics.GetMetric(MetricNameActiveReaders) == 0 {
 				cancelReaderCtx()
 				return
 			}

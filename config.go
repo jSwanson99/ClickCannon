@@ -26,7 +26,7 @@ type Config struct {
 		// How many read threads
 		Threads int `yaml:"threads"`
 		// How many MiB decompressed bytes per second can be read from disk
-		MiBytesPerSecondLimit int64 `yaml:"mb_per_second_limit"`
+		MiBytesPerSecondLimit uint64 `yaml:"mb_per_second_limit"`
 		// Set to true if you're only testing read performance off of disk, this will not send data to the insert queue
 		Passthrough    bool   `yaml:"passthrough"`
 		ShiftTimestamp string `yaml:"shift_timestamp"`
@@ -52,7 +52,8 @@ type Config struct {
 	Metrics struct {
 		ClickHouseDSN string `yaml:"clickhouse_dsn"`
 		Database      string `yaml:"database"`
-		Table         string `yaml:"table"`
+		RunTable      string `yaml:"run_table"`
+		MetricsTable  string `yaml:"metrics_table"`
 	} `yaml:"metrics"`
 }
 
@@ -187,7 +188,11 @@ func (c *Config) Validate() error {
 			c.Metrics.Database = "otelspam"
 		}
 
-		if c.Metrics.Table == "" {
+		if c.Metrics.RunTable == "" {
+			c.Metrics.Database = "runs"
+		}
+
+		if c.Metrics.MetricsTable == "" {
 			c.Metrics.Database = "perf"
 		}
 	}

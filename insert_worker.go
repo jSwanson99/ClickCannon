@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"sync/atomic"
 	"time"
 
 	"github.com/ClickHouse/ch-go"
@@ -26,11 +25,10 @@ type insertWorker struct {
 	blockPool   *StructPool[SharedColumns]
 	insertQueue <-chan SharedColumns
 
-	totalRows  *atomic.Int64
-	totalBytes *atomic.Int64
+	metrics MetricsStore
 }
 
-func newInsertWorker(id int, config *Config, nodeBalancer *NodeBalancer, blockPool *StructPool[SharedColumns], insertQueue <-chan SharedColumns, totalRows, totalBytes *atomic.Int64) *insertWorker {
+func newInsertWorker(id int, config *Config, nodeBalancer *NodeBalancer, blockPool *StructPool[SharedColumns], insertQueue <-chan SharedColumns, metrics MetricsStore) *insertWorker {
 	w := insertWorker{
 		id:               id,
 		maxRowsPerInsert: config.Insert.MaxRowsPerInsert,
@@ -43,8 +41,7 @@ func newInsertWorker(id int, config *Config, nodeBalancer *NodeBalancer, blockPo
 		blockPool:   blockPool,
 		insertQueue: insertQueue,
 
-		totalRows:  totalRows,
-		totalBytes: totalBytes,
+		metrics: metrics,
 	}
 
 	return &w
@@ -173,11 +170,11 @@ func (w *insertWorker) start() {
 					// https://github.com/ClickHouse/ClickHouse/blob/master/src/Common/ProfileEvents.cpp
 					switch e.Name {
 					case "InsertedRows":
-						w.totalRows.Add(e.Value)
+						w.metrics.IncrementMetric(MetricNameInsertRowsPerSecond, uint64(e.Value))
 					case "InsertedBytes":
 						//insertBytesPerSecond.Add(e.Value)
 					case "NetworkReceiveBytes":
-						w.totalBytes.Add(e.Value)
+						w.metrics.IncrementMetric(MetricNameInsertBytesPerSecond, uint64(e.Value))
 					default:
 						continue
 					}

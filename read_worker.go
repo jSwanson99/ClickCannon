@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync/atomic"
 	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
@@ -29,12 +28,10 @@ type readWorker struct {
 	blockPool   *StructPool[SharedColumns]
 	insertQueue chan<- SharedColumns
 
-	totalRows              *atomic.Int64
-	totalBytesCompressed   *atomic.Int64
-	totalBytesUncompressed *atomic.Int64
+	metrics MetricsStore
 }
 
-func newReadWorker(id int, shiftTimestamp string, filePath string, fileCompressed bool, bytesPerSecondLimit float64, passthrough bool, blockPool *StructPool[SharedColumns], insertQueue chan<- SharedColumns, totalRows, totalBytesCompressed, totalBytesUncompressed *atomic.Int64) *readWorker {
+func newReadWorker(id int, shiftTimestamp string, filePath string, fileCompressed bool, bytesPerSecondLimit float64, passthrough bool, blockPool *StructPool[SharedColumns], insertQueue chan<- SharedColumns, metrics MetricsStore) *readWorker {
 	w := readWorker{
 		id:                  id,
 		filePath:            filePath,
@@ -46,9 +43,7 @@ func newReadWorker(id int, shiftTimestamp string, filePath string, fileCompresse
 		blockPool:   blockPool,
 		insertQueue: insertQueue,
 
-		totalRows:              totalRows,
-		totalBytesCompressed:   totalBytesCompressed,
-		totalBytesUncompressed: totalBytesUncompressed,
+		metrics: metrics,
 	}
 
 	return &w
@@ -76,7 +71,10 @@ func (w *readWorker) start(ctx context.Context) {
 	}(data)
 
 	var dec proto.Block
-	compressedSpeedRd := NewSpeedReader(data, w.totalBytesCompressed)
+	compressedSpeedRd := NewSpeedReader(data, func(n uint64) {
+		w.metrics.IncrementMetric(MetricNameReadCompressedBytesPerSecond, n)
+		w.metrics.IncrementMetric(MetricNameTotalBytesCompressed, n)
+	})
 	bufRd := bufio.NewReader(compressedSpeedRd)
 	var optReader io.Reader = bufRd
 	if w.fileCompressed {
@@ -92,7 +90,10 @@ func (w *readWorker) start(ctx context.Context) {
 		optReader = zstdRd
 	}
 	optReader = bufio.NewReaderSize(optReader, 32*1024)
-	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, w.totalBytesUncompressed)
+	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, func(n uint64) {
+		w.metrics.IncrementMetric(MetricNameReadUncompressedBytesPerSecond, n)
+		w.metrics.IncrementMetric(MetricNameTotalBytesUncompressed, n)
+	})
 	defer w.speedRd.Close()
 
 	rd := proto.NewReader(w.speedRd)
@@ -115,11 +116,12 @@ func (w *readWorker) start(ctx context.Context) {
 			if w.firstTimestamp.IsZero() {
 				w.firstTimestamp = cols.FirstTimestamp()
 			}
-			
+
 			cols.UpdateTimestamp(w.firstTimestamp)
 		}
 
-		w.totalRows.Add(int64(colsRes.Rows()))
+		w.metrics.IncrementMetric(MetricNameReadRowsPerSecond, uint64(colsRes.Rows()))
+		w.metrics.IncrementMetric(MetricNameTotalRows, uint64(colsRes.Rows()))
 
 		if w.passthrough {
 			// Passthrough for testing max disk read speed.

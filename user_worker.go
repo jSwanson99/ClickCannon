@@ -8,7 +8,6 @@ import (
 	"hash/crc64"
 	"log"
 	"math/rand/v2"
-	"sync/atomic"
 	"text/template"
 	"time"
 
@@ -37,10 +36,10 @@ type userWorker struct {
 	minQueryWait time.Duration
 	maxQueryWait time.Duration
 
-	totalQueries *atomic.Int64
+	metrics MetricsStore
 }
 
-func newUserWorker(testID string, id int, config *Config, totalQueries *atomic.Int64) (*userWorker, error) {
+func newUserWorker(testID string, id int, config *Config, metrics MetricsStore) (*userWorker, error) {
 	w := userWorker{
 		id: id,
 		r:  newRand(testID, id),
@@ -54,7 +53,7 @@ func newUserWorker(testID string, id int, config *Config, totalQueries *atomic.I
 		minQueryWait: config.User.MinQueryWait,
 		maxQueryWait: config.User.MaxQueryWait,
 
-		totalQueries: totalQueries,
+		metrics: metrics,
 	}
 
 	opt := clickhouse.Options{
@@ -88,16 +87,16 @@ func (w *userWorker) start(ctx context.Context) {
 
 		sql := w.getNextSQL()
 
-		now := time.Now()
+		//now := time.Now()
 		err := w.client.Exec(ctx, sql)
 		if err != nil {
 			w.logErr(fmt.Errorf("failed to run query: %w", err))
 			continue
 		}
 
-		w.log("ran query in %s (%s)", time.Since(now), sql)
+		//w.log("ran query in %s (%s)", time.Since(now), sql)
 
-		w.totalQueries.Add(1)
+		w.metrics.IncrementMetric(MetricNameUserQueriesPerSecond, 1)
 		w.index++
 	}
 }

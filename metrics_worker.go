@@ -45,6 +45,7 @@ const (
 	MetricNameActiveUsers                    MetricName = "active_users"
 	MetricNameUserQueriesPerSecond           MetricName = "user_queries_per_second"
 
+	MetricNameTargetBytesPerSecond   MetricName = "target_bytes_per_second"
 	MetricNameTotalRows              MetricName = "total_rows"
 	MetricNameTotalBytesCompressed   MetricName = "total_bytes_compressed"
 	MetricNameTotalBytesUncompressed MetricName = "total_bytes_uncompressed"
@@ -154,6 +155,9 @@ func (w *metricsWorker) start(ctx context.Context) {
 			totalUncompressedBytes := w.metrics[MetricNameTotalBytesUncompressed]
 			w.mu.Unlock()
 
+			// this should be dynamically adjustable in the future, but for now we set it constantly
+			w.SetMetric(MetricNameTargetBytesPerSecond, w.targetBytesPerSecond)
+
 			log.Printf("Read(%d) %s rows/s %s/s (%s/s compressed), Insert(%d) %s rows/s %s/s, Total %s rows %s (%s compressed) Queries(%d) %s/s\n",
 				activeReaders,
 				FormatNumber(readRowsPerSecond),
@@ -223,6 +227,7 @@ func (w *metricsWorker) resetMetrics() {
 	for name := range w.metrics {
 		// Skip resetting these. They should probably go in their own table or something
 		switch name {
+		case MetricNameTargetBytesPerSecond:
 		case MetricNameTotalRows:
 		case MetricNameTotalBytesCompressed:
 		case MetricNameTotalBytesUncompressed:

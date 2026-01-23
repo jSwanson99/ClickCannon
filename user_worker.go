@@ -85,17 +85,21 @@ func (w *userWorker) start(ctx context.Context) {
 		//w.log("rand: %d total: %d", rVal, w.minQueryWait.Milliseconds()+rVal)
 		time.Sleep(time.Millisecond * (time.Duration(w.minQueryWait.Milliseconds()) + time.Duration(rVal)))
 
-		sql := w.getNextSQL()
+		sql, query := w.getNextSQL()
 
-		//now := time.Now()
+		now := time.Now()
 		err := w.client.Exec(ctx, sql)
 		if err != nil {
 			w.logErr(fmt.Errorf("failed to run query: %w", err))
 			continue
 		}
 
-		//w.log("ran query in %s (%s)", time.Since(now), sql)
+		meta := query.Name
+		if meta == "" {
+			meta = query.SQL
+		}
 
+		w.metrics.AddMetricPoint(MetricNameQueryLatencyMicros, meta, uint64(time.Since(now).Microseconds()))
 		w.metrics.IncrementMetric(MetricNameUserQueriesPerSecond, 1)
 		w.index++
 	}
@@ -107,7 +111,7 @@ type SQLTemplateParams struct {
 	TimeRangeEnd   string
 }
 
-func (w *userWorker) getNextSQL() string {
+func (w *userWorker) getNextSQL() (string, *UserQueryConfig) {
 	queryIndex := w.index % len(w.userConfig.Queries)
 	query := w.userConfig.Queries[queryIndex]
 	sqlTemplate := query.SQL
@@ -134,7 +138,7 @@ func (w *userWorker) getNextSQL() string {
 	sqlOutput.WriteByte(' ')
 	sqlOutput.WriteString("Format Null")
 
-	return sqlOutput.String()
+	return sqlOutput.String(), &query
 }
 
 func (w *userWorker) stop() {

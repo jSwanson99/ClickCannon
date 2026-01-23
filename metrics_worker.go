@@ -23,6 +23,7 @@ type metricsWorker struct {
 	metricsQueue chan MetricEntry
 	mu           sync.Mutex
 	metrics      map[MetricName]uint64
+	pointMetrics []MetricEntry
 }
 
 type MetricsStore interface {
@@ -30,39 +31,61 @@ type MetricsStore interface {
 	DecrementMetric(name MetricName, delta uint64)
 	SetMetric(name MetricName, value uint64)
 	GetMetric(name MetricName) uint64
+
+	// AddMetricPoint - The other metric functions store points every 1s while
+	// this function stores an individual row.
+	AddMetricPoint(name MetricName, meta string, value uint64)
 }
 
 type MetricName string
 
 const (
+	// Per second metrics
+
 	MetricNameReadRowsPerSecond              MetricName = "read_rows_per_second"
 	MetricNameReadCompressedBytesPerSecond   MetricName = "read_compressed_bytes_per_second"
 	MetricNameReadUncompressedBytesPerSecond MetricName = "read_uncompressed_bytes_per_second"
 	MetricNameInsertRowsPerSecond            MetricName = "insert_rows_per_second"
 	MetricNameInsertBytesPerSecond           MetricName = "insert_bytes_per_second"
-	MetricNameActiveReaders                  MetricName = "active_readers"
-	MetricNameActiveInserters                MetricName = "active_inserters"
-	MetricNameActiveUsers                    MetricName = "active_users"
 	MetricNameUserQueriesPerSecond           MetricName = "user_queries_per_second"
+	MetricNameTargetBytesPerSecond           MetricName = "target_bytes_per_second"
 
-	MetricNameTargetBytesPerSecond   MetricName = "target_bytes_per_second"
+	// State counters
+
+	MetricNameActiveReaders   MetricName = "active_readers"
+	MetricNameActiveInserters MetricName = "active_inserters"
+	MetricNameActiveUsers     MetricName = "active_users"
+
+	// Totals
+
 	MetricNameTotalRows              MetricName = "total_rows"
 	MetricNameTotalBytesCompressed   MetricName = "total_bytes_compressed"
 	MetricNameTotalBytesUncompressed MetricName = "total_bytes_uncompressed"
+
+	// Individual point metrics
+
+	MetricNameQueryLatencyMicros MetricName = "query_latency_micros"
 )
 
 type MetricEntryMode int
 
 const (
+	// MetricEntryModeIncrement Increments a metric by name
 	MetricEntryModeIncrement MetricEntryMode = iota
+	// MetricEntryModeDecrement Decrements a metric by name
 	MetricEntryModeDecrement
+	// MetricEntryModeSet Sets a metric by name
 	MetricEntryModeSet
+	// MetricEntryModePoint Stores an individual data point value instead of a cumulative value
+	MetricEntryModePoint
 )
 
 type MetricEntry struct {
-	Mode  MetricEntryMode
-	Name  MetricName
-	Value uint64
+	Mode      MetricEntryMode
+	Timestamp time.Time
+	Name      MetricName
+	Meta      string
+	Value     uint64
 }
 
 func newMetricsWorker(runID, dataType string, targetBytesPerSecond uint64, clickhouseDSN, metricsDatabase, runTable, metricsTable string) (*metricsWorker, error) {
@@ -73,6 +96,7 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond uint64, click
 
 		metricsQueue: make(chan MetricEntry, 10_000),
 		metrics:      make(map[MetricName]uint64),
+		pointMetrics: make([]MetricEntry, 0, 10_000),
 	}
 
 	if clickhouseDSN != "" {
@@ -117,6 +141,7 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond uint64, click
 			CREATE TABLE IF NOT EXISTS %q.%q (
 				run_id String,
 				metric_name LowCardinality(String),
+				metric_meta String,
 				timestamp DateTime64(3),
 				value UInt64
 			) Engine = MergeTree()
@@ -128,7 +153,7 @@ func newMetricsWorker(runID, dataType string, targetBytesPerSecond uint64, click
 			return nil, fmt.Errorf("failed to create metrics table: %w", err)
 		}
 
-		w.insertSQL = fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?)`, metricsDatabase, metricsTable)
+		w.insertSQL = fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?, ?)`, metricsDatabase, metricsTable)
 	}
 
 	return &w, nil
@@ -202,7 +227,7 @@ func (w *metricsWorker) applyMetricEntry(m MetricEntry) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if _, ok := w.metrics[m.Name]; !ok {
+	if _, ok := w.metrics[m.Name]; !ok && m.Mode != MetricEntryModePoint {
 		w.metrics[m.Name] = 0
 	}
 
@@ -217,6 +242,8 @@ func (w *metricsWorker) applyMetricEntry(m MetricEntry) {
 		}
 	case MetricEntryModeSet:
 		w.metrics[m.Name] = m.Value
+	case MetricEntryModePoint:
+		w.pointMetrics = append(w.pointMetrics, m)
 	}
 }
 
@@ -238,6 +265,8 @@ func (w *metricsWorker) resetMetrics() {
 			w.metrics[name] = 0
 		}
 	}
+
+	w.pointMetrics = w.pointMetrics[:0]
 }
 
 func (w *metricsWorker) pushMetrics(ctx context.Context) error {
@@ -250,12 +279,21 @@ func (w *metricsWorker) pushMetrics(ctx context.Context) error {
 	w.mu.Lock()
 	now := time.Now()
 	for name, value := range w.metrics {
-		err = batch.Append(w.runID, string(name), now, value)
+		err = batch.Append(w.runID, string(name), "", now, value)
 		if err != nil {
 			w.mu.Unlock()
 			return fmt.Errorf("failed to append metric (%s/%d) to batch: %w", name, value, err)
 		}
 	}
+
+	for _, m := range w.pointMetrics {
+		err = batch.Append(w.runID, string(m.Name), m.Meta, m.Timestamp, m.Value)
+		if err != nil {
+			w.mu.Unlock()
+			return fmt.Errorf("failed to append point metric (%s/%d) to batch: %w", m.Name, m.Value, err)
+		}
+	}
+
 	w.mu.Unlock()
 
 	err = batch.Send()
@@ -295,4 +333,14 @@ func (w *metricsWorker) GetMetric(name MetricName) uint64 {
 	defer w.mu.Unlock()
 
 	return w.metrics[name]
+}
+
+func (w *metricsWorker) AddMetricPoint(name MetricName, meta string, value uint64) {
+	w.metricsQueue <- MetricEntry{
+		Mode:      MetricEntryModePoint,
+		Timestamp: time.Now(),
+		Meta:      meta,
+		Name:      name,
+		Value:     value,
+	}
 }

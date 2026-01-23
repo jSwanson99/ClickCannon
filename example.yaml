@@ -29,7 +29,7 @@ insert:
   # Distributes the connections across the cluster nodes.
   # Requires multiple reconnects for hosts hidden behind a load balancer.
   balance_nodes: false
-  # ClickHouse connection settings
+  # ClickHouse connection settings, also used for user queries
   clickhouse:
     address: localhost:9000
     secure: false
@@ -60,7 +60,8 @@ user:
       #
       # To use, use Go template syntax: {{.VariableName}}
       #
-    - sql: "SELECT * FROM {{.Table}} WHERE timestamp >= {{.TimeRangeStart}} AND timestamp <= {{.TimeRangeEnd}}"
+    - name: test
+      sql: "SELECT * FROM {{.Table}} WHERE timestamp >= {{.TimeRangeStart}} AND timestamp <= {{.TimeRangeEnd}}"
       # Time range is optional, but can be used to populate the time range variables in the above SQL.
       # The end time will be equal to the current time when the query is executed.
       # The start time will be the current time minus the time_range duration below.

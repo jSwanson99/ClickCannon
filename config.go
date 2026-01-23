@@ -81,6 +81,7 @@ type UserConfig struct {
 }
 
 type UserQueryConfig struct {
+	Name      string        `yaml:"name"`
 	SQL       string        `yaml:"sql"`
 	TimeRange time.Duration `yaml:"time_range"`
 }

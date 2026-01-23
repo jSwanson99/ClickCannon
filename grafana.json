@@ -3,7 +3,7 @@
   "kind": "Dashboard",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 27,
+    "generation": 28,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -406,7 +406,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_meta,\n  quantile(0.5)(value),\n  toStartOfSecond(timestamp) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY metric_meta, timestamp\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_meta,\n  quantile(0.5)(value) as value,\n  toStartOfSecond(timestamp) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY metric_meta, timestamp\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },

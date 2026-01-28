@@ -25,8 +25,7 @@ func main() {
 
 	harQueries, err := openHar("hyperdx.har")
 	if err != nil {
-		fmt.Printf("failed to load HAR file: %s\n", err)
-		os.Exit(1)
+		fmt.Printf("(OPTIONAL) failed to load HAR file: %s\n", err)
 	}
 
 	otelFiles, err := getDataFiles(config.GetDataFolder())

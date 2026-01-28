@@ -31,5 +31,6 @@ Logs will be in the console, or exported to a table of your choice if you have a
 You can simulate queries too. Check the example.yaml to see how an array of queries can be configured.
 I've also added experimental code for replaying a browser http archive (HAR) file.
 This has some hardcoded logic, but it is intended to capture queries from HyperDX.
-The timestamp on the queries is shifted as well as the database.
+The timestamp on the queries is shifted as well as the database name.
 The format is swapped to be `Null` since the data isn't used.
+Queries are replayed at the same pace they were captured.

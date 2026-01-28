@@ -114,9 +114,8 @@ func openHar(filePath string) ([]UserQuery, error) {
 		}
 
 		queries = append(queries, query)
-		fmt.Printf("Found query: %q (Time: %s, Duration: %.2fms, Delay: %s) params: %+v\n", query.SQL, e.Timestamp.Format(time.RFC3339), e.Duration, query.Delay.String(), query.Parameters)
 	}
-	fmt.Println("Total queries:", len(queries))
+	fmt.Println("Total HAR queries found:", len(queries))
 
 	return queries, nil
 }

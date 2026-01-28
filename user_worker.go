@@ -14,6 +14,13 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
+type UserQuery struct {
+	Name       string
+	SQL        string
+	Parameters map[string]string
+	Delay      time.Duration
+}
+
 func newRand(runID string, workerID int) *rand.Rand {
 	crc := crc64.Checksum([]byte(runID), crc64.MakeTable(crc64.ISO))
 	return rand.New(rand.NewPCG(crc, uint64(workerID)))
@@ -37,9 +44,11 @@ type userWorker struct {
 	maxQueryWait time.Duration
 
 	metrics MetricsStore
+
+	harQueries []UserQuery
 }
 
-func newUserWorker(testID string, id int, config *Config, metrics MetricsStore) (*userWorker, error) {
+func newUserWorker(testID string, id int, config *Config, metrics MetricsStore, harQueries []UserQuery) (*userWorker, error) {
 	w := userWorker{
 		id: id,
 		r:  newRand(testID, id),
@@ -54,6 +63,8 @@ func newUserWorker(testID string, id int, config *Config, metrics MetricsStore) 
 		maxQueryWait: config.User.MaxQueryWait,
 
 		metrics: metrics,
+
+		harQueries: harQueries,
 	}
 
 	opt := clickhouse.Options{
@@ -85,24 +96,55 @@ func (w *userWorker) start(ctx context.Context) {
 		//w.log("rand: %d total: %d", rVal, w.minQueryWait.Milliseconds()+rVal)
 		time.Sleep(time.Millisecond * (time.Duration(w.minQueryWait.Milliseconds()) + time.Duration(rVal)))
 
-		sql, query := w.getNextSQL()
+		if len(w.harQueries) > 0 {
+			query := w.getNextHarSQL()
+			params := make([]any, 0, len(query.Parameters))
+			for key, value := range query.Parameters {
+				params = append(params, clickhouse.Named(key, value))
+			}
 
-		now := time.Now()
-		err := w.client.Exec(ctx, sql)
-		if err != nil {
-			w.logErr(fmt.Errorf("failed to run query: %w", err))
-			continue
+			err := w.execQuery(ctx, query.Name, query.SQL, params, query.Delay)
+			if err != nil {
+				w.logErr(err)
+			}
+		} else {
+			sql, query := w.getNextSQL()
+
+			err := w.execQuery(ctx, query.Name, sql, nil, 0)
+			if err != nil {
+				w.logErr(err)
+			}
 		}
 
-		meta := query.Name
-		if meta == "" {
-			meta = query.SQL
-		}
-
-		w.metrics.AddMetricPoint(MetricNameQueryLatencyMicros, meta, uint64(time.Since(now).Microseconds()))
-		w.metrics.IncrementMetric(MetricNameUserQueriesPerSecond, 1)
 		w.index++
 	}
+}
+
+func (w *userWorker) execQuery(ctx context.Context, queryName, sql string, params []any, delay time.Duration) error {
+	now := time.Now()
+	err := w.client.Exec(ctx, sql, params...)
+	if err != nil {
+		return fmt.Errorf("failed to run query: %w", err)
+	}
+
+	meta := queryName
+	if meta == "" {
+		meta = sql
+	}
+
+	w.metrics.AddMetricPoint(MetricNameQueryLatencyMicros, meta, uint64(time.Since(now).Microseconds()))
+	w.metrics.IncrementMetric(MetricNameUserQueriesPerSecond, 1)
+
+	time.Sleep(delay)
+
+	return nil
+}
+
+func (w *userWorker) getNextHarSQL() UserQuery {
+	queryIndex := w.index % len(w.harQueries)
+	query := w.harQueries[queryIndex]
+
+	return query
 }
 
 type SQLTemplateParams struct {

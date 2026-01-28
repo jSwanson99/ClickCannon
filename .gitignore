@@ -36,6 +36,7 @@ otelspam
 log_data/*native*
 trace_data/*native*
 *test.yaml
+*.har
 *.log
 sync*.sh
 runloop.sh

@@ -23,6 +23,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	harQueries, err := openHar("hyperdx.har")
+	if err != nil {
+		fmt.Printf("failed to load HAR file: %s\n", err)
+		os.Exit(1)
+	}
+
 	otelFiles, err := getDataFiles(config.GetDataFolder())
 	if err != nil {
 		fmt.Printf("failed to find files for %s insert: %s\n", config.Read.DataType, err)
@@ -108,7 +114,7 @@ func main() {
 	var userWg sync.WaitGroup
 	mw.SetMetric(MetricNameActiveUsers, uint64(config.User.Threads))
 	for i := range config.User.Threads {
-		w, wErr := newUserWorker(runID.String(), i, config, mw)
+		w, wErr := newUserWorker(runID.String(), i, config, mw, harQueries)
 		if wErr != nil {
 			panic(fmt.Errorf("failed to start user worker at index %d: %w", i, wErr))
 		}

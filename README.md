@@ -21,7 +21,7 @@ SELECT * FROM otel.otel_logs LIMIT 10000000 INTO OUTFILE 'log_data/logs.native.z
 
 Run the program:
 ```sh
-./otelspam --config example.yaml
+go run otelspam --config example.yaml
 ```
 
 Logs will be in the console, or exported to a table of your choice if you have a ClickHouse URL configured.

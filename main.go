@@ -37,7 +37,7 @@ func main() {
 	bytesPerSecond := config.Read.MiBytesPerSecondLimit * 1024 * 1024
 
 	blocksToAlloc := config.Read.Threads + (config.Insert.Threads * 2)
-	insertQueue := make(chan SharedColumns, blocksToAlloc)
+	insertQueue := make(chan SharedColumns, config.Read.Threads+config.Insert.Threads)
 	var blockPool *StructPool[SharedColumns]
 	if config.Read.DataType == ConfigDataTypeLogs {
 		blockPool, err = NewStructPool[SharedColumns](blocksToAlloc, func() (SharedColumns, error) {

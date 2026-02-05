@@ -7,7 +7,7 @@ read:
   traces_path: trace_data
   # The number of read threads to use. One thread per file.
   threads: 2
-  # The speed limit across all threads, in MiB
+  # The speed limit for uncompressed data across all threads, in MiB
   mb_per_second_limit: 2048
   # Set to true if you're only testing read performance off of disk, this will not send data to the insert queue
   passthrough: false

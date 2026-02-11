@@ -72,8 +72,9 @@ func openHar(filePath string) ([]UserQuery, error) {
 		}
 
 		sql := e.Request.PostData.Text
-		sql = strings.ReplaceAll(sql, "FORMAT JSON", "FORMAT Null")
+		sql = strings.ReplaceAll(sql, "FORMAT JSONCompactEachRowWithNamesAndTypes", "FORMAT Null")
 		sql = strings.ReplaceAll(sql, "FORMAT JSONEachRow", "FORMAT Null")
+		sql = strings.ReplaceAll(sql, "FORMAT JSON", "FORMAT Null")
 
 		query := UserQuery{
 			SQL:        sql,

@@ -39,6 +39,25 @@ type harRequest struct {
 	} `json:"postData"`
 }
 
+type hdxParam int
+
+const (
+	hdxParamUnknown hdxParam = iota
+	hdxParamDatabase
+	hdxParamTable
+	hdxParamTimeRangeAfter
+	hdxParamTimeRangeBefore
+)
+
+var hdxParamLookup = map[string]hdxParam{
+	"HYPERDX_PARAM_1148736945": hdxParamDatabase,
+	"HYPERDX_PARAM_1084069686": hdxParamTable,
+	"HYPERDX_PARAM_1793348460": hdxParamTimeRangeAfter,
+	"HYPERDX_PARAM_1639973743": hdxParamTimeRangeAfter,
+	"HYPERDX_PARAM_1793410119": hdxParamTimeRangeAfter,
+	"HYPERDX_PARAM_1642682583": hdxParamTimeRangeBefore,
+}
+
 func openHar(filePath string) ([]UserQuery, error) {
 	harBytes, err := os.ReadFile(filePath)
 	if err != nil {
@@ -80,6 +99,8 @@ func openHar(filePath string) ([]UserQuery, error) {
 			SQL:        sql,
 			Parameters: make(map[string]string),
 			Delay:      e.Timestamp.Sub(fileStartTime),
+
+			FileStartTime: fileStartTime,
 		}
 
 		reqQueryParams := reqURL.Query()
@@ -91,26 +112,29 @@ func openHar(filePath string) ([]UserQuery, error) {
 			if key == "user" {
 				continue
 			}
+			paramName := key[6:] // remove "param_" prefix
 			value := reqQueryParams.Get(key)
 
-			// overwrite database
-			if value == "otel_v2" {
+			if hdxParamLookup[paramName] == hdxParamDatabase {
 				value = DatabaseOverride
 			}
 
-			// value is probably a UTC time. This will eventually break.
-			if strings.HasPrefix(value, "17") {
-				parsedTime := parseTimestamp(value)
-				// Shift timestamp to current time
-				if !parsedTime.IsZero() {
-					parsedTime = parsedTime.Add(time.Since(fileStartTime))
-					value = strconv.Itoa(int(parsedTime.UnixMilli()))
-				}
+			if hdxParamLookup[paramName] == hdxParamTimeRangeAfter {
+				query.TimeRangeAfterParam = paramName
+			} else if hdxParamLookup[paramName] == hdxParamTimeRangeBefore {
+				query.TimeRangeBeforeParam = paramName
 			}
 
 			// TODO: extract settings too?
 			if strings.HasPrefix(key, "param_") {
-				query.Parameters[key[6:]] = value
+				query.Parameters[paramName] = value
+			}
+
+			if query.TimeRangeBeforeParam != "" && query.TimeRangeAfterParam != "" {
+				afterTime := parseTimestamp(query.Parameters[query.TimeRangeAfterParam])
+				beforeTime := parseTimestamp(query.Parameters[query.TimeRangeBeforeParam])
+
+				query.TimeRangeDuration = beforeTime.Sub(afterTime)
 			}
 		}
 

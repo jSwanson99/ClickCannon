@@ -8,6 +8,7 @@ import (
 	"hash/crc64"
 	"log"
 	"math/rand/v2"
+	"strconv"
 	"text/template"
 	"time"
 
@@ -19,6 +20,11 @@ type UserQuery struct {
 	SQL        string
 	Parameters map[string]string
 	Delay      time.Duration
+
+	FileStartTime        time.Time
+	TimeRangeAfterParam  string
+	TimeRangeBeforeParam string
+	TimeRangeDuration    time.Duration
 }
 
 func newRand(runID string, workerID int) *rand.Rand {
@@ -32,11 +38,12 @@ type userWorker struct {
 
 	index int
 
-	userConfig *UserConfig
-	chConfig   *ClickHouseConfig
-	isLogs     bool
-	database   string
-	table      string
+	userConfig     *UserConfig
+	chConfig       *ClickHouseConfig
+	ShiftTimestamp string
+	isLogs         bool
+	database       string
+	table          string
 
 	client clickhouse.Conn
 
@@ -53,11 +60,12 @@ func newUserWorker(testID string, id int, config *Config, metrics MetricsStore, 
 		id: id,
 		r:  newRand(testID, id),
 
-		userConfig: &config.User,
-		chConfig:   &config.Insert.ClickHouse,
-		isLogs:     config.IsLogsData(),
-		database:   config.Insert.ClickHouse.Database,
-		table:      config.GetInsertTable(),
+		userConfig:     &config.User,
+		chConfig:       &config.Insert.ClickHouse,
+		ShiftTimestamp: config.Read.ShiftTimestamp,
+		isLogs:         config.IsLogsData(),
+		database:       config.Insert.ClickHouse.Database,
+		table:          config.GetInsertTable(),
 
 		minQueryWait: config.User.MinQueryWait,
 		maxQueryWait: config.User.MaxQueryWait,
@@ -135,7 +143,8 @@ func (w *userWorker) execQuery(ctx context.Context, queryName, sql string, param
 	w.metrics.AddMetricPoint(MetricNameQueryLatencyMicros, meta, uint64(time.Since(now).Microseconds()))
 	w.metrics.IncrementMetric(MetricNameUserQueriesPerSecond, 1)
 
-	time.Sleep(delay)
+	// Delay is too strong for now
+	//time.Sleep(delay)
 
 	return nil
 }
@@ -143,6 +152,13 @@ func (w *userWorker) execQuery(ctx context.Context, queryName, sql string, param
 func (w *userWorker) getNextHarSQL() UserQuery {
 	queryIndex := w.index % len(w.harQueries)
 	query := w.harQueries[queryIndex]
+
+	// Shift timestamps to be relative to execution time
+	if query.TimeRangeAfterParam != "" && query.TimeRangeBeforeParam != "" {
+		now := time.Now()
+		query.Parameters[query.TimeRangeBeforeParam] = strconv.Itoa(int(now.UnixMilli()))
+		query.Parameters[query.TimeRangeAfterParam] = strconv.Itoa(int(now.Add(-query.TimeRangeDuration).UnixMilli()))
+	}
 
 	return query
 }

@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const DatabaseOverride = "otel_map"
-
 type harFile struct {
 	Log harLog `json:"log"`
 }
@@ -37,25 +35,6 @@ type harRequest struct {
 	PostData struct {
 		Text string `json:"text"`
 	} `json:"postData"`
-}
-
-type hdxParam int
-
-const (
-	hdxParamUnknown hdxParam = iota
-	hdxParamDatabase
-	hdxParamTable
-	hdxParamTimeRangeAfter
-	hdxParamTimeRangeBefore
-)
-
-var hdxParamLookup = map[string]hdxParam{
-	"HYPERDX_PARAM_1148736945": hdxParamDatabase,
-	"HYPERDX_PARAM_1084069686": hdxParamTable,
-	"HYPERDX_PARAM_1793348460": hdxParamTimeRangeAfter,
-	"HYPERDX_PARAM_1639973743": hdxParamTimeRangeAfter,
-	"HYPERDX_PARAM_1793410119": hdxParamTimeRangeAfter,
-	"HYPERDX_PARAM_1642682583": hdxParamTimeRangeBefore,
 }
 
 func openHar(filePath string) ([]UserQuery, error) {
@@ -108,6 +87,16 @@ func openHar(filePath string) ([]UserQuery, error) {
 			continue
 		}
 
+		if strings.Contains(sql, "HYPERDX_PARAM_1984153269") {
+			// bugged
+			continue
+		}
+
+		if strings.Contains(sql, "parseDateTime64BestEffort") {
+			// hardcoded timestamps, cannot easily modify
+			continue
+		}
+
 		for key := range reqQueryParams {
 			if key == "user" {
 				continue
@@ -115,14 +104,39 @@ func openHar(filePath string) ([]UserQuery, error) {
 			paramName := key[6:] // remove "param_" prefix
 			value := reqQueryParams.Get(key)
 
-			if hdxParamLookup[paramName] == hdxParamDatabase {
-				value = DatabaseOverride
-			}
+			if strings.Contains(sql, "Timestamp") {
+				afterKey := "Timestamp >="
+				afterKeyLen := len(afterKey)
+				afterIndex := strings.Index(sql, afterKey)
+				endAfterIndex := strings.IndexByte(sql[afterIndex+afterKeyLen:], ')')
 
-			if hdxParamLookup[paramName] == hdxParamTimeRangeAfter {
-				query.TimeRangeAfterParam = paramName
-			} else if hdxParamLookup[paramName] == hdxParamTimeRangeBefore {
-				query.TimeRangeBeforeParam = paramName
+				beforeKey := "Timestamp <"
+				beforeKeyLen := len(beforeKey)
+				beforeIndex := strings.Index(sql, beforeKey)
+				endBeforeIndex := strings.IndexByte(sql[beforeIndex+beforeKeyLen:], ')')
+
+				if afterIndex > 0 {
+					afterExpr := sql[afterIndex : afterIndex+afterKeyLen+endAfterIndex+1]
+
+					hdxKey := "HYPERDX_PARAM"
+					hdxKeyLen := len(hdxKey)
+					hdxIndex := strings.Index(afterExpr, hdxKey)
+					endHdxIndex := strings.IndexByte(afterExpr[hdxIndex+hdxKeyLen:], ':')
+
+					hdxExpr := afterExpr[hdxIndex : hdxIndex+hdxKeyLen+endHdxIndex]
+					query.TimeRangeAfterParam = hdxExpr
+				}
+				if beforeIndex > 0 {
+					beforeExpr := sql[beforeIndex : beforeIndex+beforeKeyLen+endBeforeIndex+1]
+
+					hdxKey := "HYPERDX_PARAM"
+					hdxKeyLen := len(hdxKey)
+					hdxIndex := strings.Index(beforeExpr, hdxKey)
+					endHdxIndex := strings.IndexByte(beforeExpr[hdxIndex+hdxKeyLen:], ':')
+
+					hdxExpr := beforeExpr[hdxIndex : hdxIndex+hdxKeyLen+endHdxIndex]
+					query.TimeRangeBeforeParam = hdxExpr
+				}
 			}
 
 			// TODO: extract settings too?

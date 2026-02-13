@@ -1,9 +1,9 @@
 {
   "apiVersion": "dashboard.grafana.app/v2beta1",
-  "kind": "Dashboard",
+  "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 28,
+    "generation": 39,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -27,7 +27,7 @@
         }
       }
     ],
-    "cursorSync": "Tooltip",
+    "cursorSync": "Crosshair",
     "editable": true,
     "elements": {
       "panel-1": {
@@ -278,9 +278,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('user_queries_per_second')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  quantile(0.5)(value) as count,\n  toStartOfInterval(timestamp, INTERVAL 5 SECOND) time\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('user_queries_per_second')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -494,6 +494,174 @@
                   "mode": "multi",
                   "sort": "none"
                 }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-13": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 1,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "table",
+                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  metric_meta as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  -- count(*) as count,\n  quantile(0.5)(value) as p50,\n  quantile(0.90)(value) as p90\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC\nLIMIT 25"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": [
+                {
+                  "kind": "formatString",
+                  "spec": {
+                    "id": "formatString",
+                    "options": {
+                      "outputFormat": "Substring",
+                      "stringField": "query_name",
+                      "substringEnd": 64
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "description": "",
+          "id": 13,
+          "links": [],
+          "title": "Latency By Query (p50 and p99)",
+          "vizConfig": {
+            "group": "barchart",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 500000
+                      },
+                      {
+                        "color": "red",
+                        "value": 1000000
+                      },
+                      {
+                        "color": "dark-red",
+                        "value": 10000000
+                      }
+                    ]
+                  },
+                  "unit": "µs"
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "query_name"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "string"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "count"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "none"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "options": {
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "orientation": "horizontal",
+                "showValue": "auto",
+                "stacking": "normal",
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                },
+                "xField": "query_name",
+                "xTickLabelRotation": 0,
+                "xTickLabelSpacing": 0
               }
             },
             "version": "12.4.0-pre"
@@ -1467,6 +1635,19 @@
               "x": 12,
               "y": 16
             }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-13"
+              },
+              "height": 17,
+              "width": 24,
+              "x": 0,
+              "y": 21
+            }
           }
         ]
       }
@@ -1476,7 +1657,7 @@
     "preload": false,
     "tags": [],
     "timeSettings": {
-      "autoRefresh": "5s",
+      "autoRefresh": "",
       "autoRefreshIntervals": [
         "5s",
         "10s",
@@ -1490,7 +1671,7 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-15m",
+      "from": "now-5m",
       "hideTimepicker": false,
       "timezone": "browser",
       "to": "now"
@@ -1524,7 +1705,7 @@
             "text": "",
             "value": ""
           },
-          "definition": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC",
+          "definition": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20",
           "description": "",
           "hide": "dontHide",
           "includeAll": false,
@@ -1539,12 +1720,13 @@
             "group": "grafana-clickhouse-datasource",
             "kind": "DataQuery",
             "spec": {
-              "__legacyStringValue": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC"
+              "__legacyStringValue": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20"
             },
             "version": "v0"
           },
           "refresh": "onTimeRangeChanged",
           "regex": "",
+          "regexApplyTo": "value",
           "skipUrlSync": false,
           "sort": "disabled"
         }
@@ -1578,6 +1760,7 @@
           },
           "refresh": "onDashboardLoad",
           "regex": "",
+          "regexApplyTo": "value",
           "skipUrlSync": false,
           "sort": "disabled"
         }
@@ -1609,6 +1792,7 @@
           },
           "refresh": "onDashboardLoad",
           "regex": "",
+          "regexApplyTo": "value",
           "skipUrlSync": false,
           "sort": "disabled"
         }
@@ -1640,6 +1824,7 @@
           },
           "refresh": "onDashboardLoad",
           "regex": "",
+          "regexApplyTo": "value",
           "skipUrlSync": false,
           "sort": "disabled"
         }

@@ -33,4 +33,4 @@ I've also added experimental code for replaying a browser http archive (HAR) fil
 This has some hardcoded logic, but it is intended to capture queries from HyperDX.
 The timestamp on the queries is shifted as well as the database name.
 The format is swapped to be `Null` since the data isn't used.
-Queries are replayed at the same pace they were captured.
+~~Queries are replayed at the same pace they were captured.~~ Queries are randomly timed depending on the configured min/max delay time.

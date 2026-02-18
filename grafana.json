@@ -3,10 +3,18 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 40,
+    "namespace": "default",
+    "uid": "ix3hSsI22fW6ykUv7KsKTJ9CE59cAXBbkd1Sb606oVAX",
+    "resourceVersion": "39",
+    "generation": 41,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
-    "annotations": {}
+    "annotations": {
+      "grafana.app/createdBy": "user:u000000001",
+      "grafana.app/updatedBy": "user:u000000001",
+      "grafana.app/updatedTimestamp": "2026-02-12T00:07:02Z",
+      "grafana.app/saved-from-ui": "Grafana v12.4.0-pre (2c55a322fa)"
+    }
   },
   "spec": {
     "annotations": [
@@ -19,6 +27,9 @@
           "iconColor": "rgba(0, 211, 255, 1)",
           "name": "Annotations & Alerts",
           "query": {
+            "datasource": {
+              "name": "-- Grafana --"
+            },
             "group": "grafana",
             "kind": "DataQuery",
             "spec": {},
@@ -764,18 +775,6 @@
                       {
                         "color": "green",
                         "value": 0
-                      },
-                      {
-                        "color": "#EAB839",
-                        "value": 500000
-                      },
-                      {
-                        "color": "red",
-                        "value": 1000000
-                      },
-                      {
-                        "color": "dark-red",
-                        "value": 10000000
                       }
                     ]
                   },
@@ -1864,8 +1863,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "CHCloud spencer-test",
+            "value": "cdp39twxzn4zka"
           },
           "hide": "dontHide",
           "includeAll": false,
@@ -1883,8 +1882,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "382cecba-071e-11f1-ad36-060f91b19e3d",
+            "value": "382cecba-071e-11f1-ad36-060f91b19e3d"
           },
           "definition": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20",
           "description": "",
@@ -1917,8 +1916,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "active_inserters",
+            "value": "active_inserters"
           },
           "definition": "SELECT DISTINCT metric_name FROM otelspam.perf",
           "description": "",
@@ -1951,8 +1950,8 @@
         "spec": {
           "allowCustomValue": false,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "0",
+            "value": "0"
           },
           "definition": "SELECT min(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
           "hide": "hideVariable",
@@ -1983,8 +1982,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "1770797544587",
+            "value": "1770797544587"
           },
           "definition": "SELECT max(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
           "hide": "hideVariable",

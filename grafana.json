@@ -6,7 +6,7 @@
     "namespace": "default",
     "uid": "ix3hSsI22fW6ykUv7KsKTJ9CE59cAXBbkd1Sb606oVAX",
     "resourceVersion": "39",
-    "generation": 41,
+    "generation": 42,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {
@@ -711,7 +711,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  metric_meta as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  count(*) as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY count DESC\nLIMIT 25"
+                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  metric_meta as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  count(*) as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY query_name ASC\nLIMIT 25"
                       },
                       "version": "v0"
                     },
@@ -740,7 +740,7 @@
           "links": [],
           "title": "Samples By Query",
           "vizConfig": {
-            "group": "barchart",
+            "group": "stat",
             "kind": "VizConfig",
             "spec": {
               "fieldConfig": {
@@ -748,33 +748,16 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "fillOpacity": 80,
-                    "gradientMode": "none",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "lineWidth": 1,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  },
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
                       {
                         "color": "green",
                         "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
                       }
                     ]
                   },
@@ -808,27 +791,21 @@
                 ]
               },
               "options": {
-                "barRadius": 0,
-                "barWidth": 0.97,
-                "fullHighlight": false,
-                "groupWidth": 0.7,
-                "legend": {
-                  "calcs": [],
-                  "displayMode": "list",
-                  "placement": "bottom",
-                  "showLegend": true
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": true
                 },
-                "orientation": "horizontal",
-                "showValue": "auto",
-                "stacking": "normal",
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "single",
-                  "sort": "none"
-                },
-                "xField": "query_name",
-                "xTickLabelRotation": 0,
-                "xTickLabelSpacing": 0
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
               }
             },
             "version": "12.4.0-pre"
@@ -1823,7 +1800,7 @@
                 "kind": "ElementReference",
                 "name": "panel-14"
               },
-              "height": 17,
+              "height": 5,
               "width": 24,
               "x": 0,
               "y": 38

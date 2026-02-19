@@ -3,18 +3,10 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "namespace": "default",
-    "uid": "ix3hSsI22fW6ykUv7KsKTJ9CE59cAXBbkd1Sb606oVAX",
-    "resourceVersion": "39",
-    "generation": 42,
+    "generation": 43,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
-    "annotations": {
-      "grafana.app/createdBy": "user:u000000001",
-      "grafana.app/updatedBy": "user:u000000001",
-      "grafana.app/updatedTimestamp": "2026-02-12T00:07:02Z",
-      "grafana.app/saved-from-ui": "Grafana v12.4.0-pre (2c55a322fa)"
-    }
+    "annotations": {}
   },
   "spec": {
     "annotations": [
@@ -27,9 +19,6 @@
           "iconColor": "rgba(0, 211, 255, 1)",
           "name": "Annotations & Alerts",
           "query": {
-            "datasource": {
-              "name": "-- Grafana --"
-            },
             "group": "grafana",
             "kind": "DataQuery",
             "spec": {},
@@ -291,7 +280,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  quantile(0.5)(value) as count,\n  toStartOfInterval(timestamp, INTERVAL 5 SECOND) time\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('user_queries_per_second')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
+                        "rawSql": "SELECT\n  quantile(0.5)(value) as count,\n  toStartOfInterval(timestamp, INTERVAL 10 SECOND) time\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('user_queries_per_second')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -415,9 +404,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_meta,\n  quantile(0.5)(value) as value,\n  toStartOfSecond(timestamp) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY metric_meta, timestamp\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_meta,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY metric_meta, timestamp\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1840,8 +1829,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "CHCloud spencer-test",
-            "value": "cdp39twxzn4zka"
+            "text": "",
+            "value": ""
           },
           "hide": "dontHide",
           "includeAll": false,
@@ -1859,8 +1848,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "382cecba-071e-11f1-ad36-060f91b19e3d",
-            "value": "382cecba-071e-11f1-ad36-060f91b19e3d"
+            "text": "",
+            "value": ""
           },
           "definition": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20",
           "description": "",
@@ -1893,8 +1882,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "active_inserters",
-            "value": "active_inserters"
+            "text": "",
+            "value": ""
           },
           "definition": "SELECT DISTINCT metric_name FROM otelspam.perf",
           "description": "",
@@ -1927,8 +1916,8 @@
         "spec": {
           "allowCustomValue": false,
           "current": {
-            "text": "0",
-            "value": "0"
+            "text": "",
+            "value": ""
           },
           "definition": "SELECT min(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
           "hide": "hideVariable",
@@ -1959,8 +1948,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "1770797544587",
-            "value": "1770797544587"
+            "text": "",
+            "value": ""
           },
           "definition": "SELECT max(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
           "hide": "hideVariable",

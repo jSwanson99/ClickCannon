@@ -75,15 +75,14 @@ func main() {
 		metricsStore = metrics.NewDisabledStore()
 	}
 
-	var wg sync.WaitGroup
-	ctx, cancelAll := context.WithCancel(context.Background())
-
+	var diskWg sync.WaitGroup
+	diskCtx, cancelDisk := context.WithCancel(context.Background())
 	if cfg.Disk.Enabled {
 		dws := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
-		wg.Add(1)
+		diskWg.Add(1)
 		go func() {
-			defer wg.Done()
-			dwsErr := dws.Run(ctx)
+			defer diskWg.Done()
+			dwsErr := dws.Run(diskCtx)
 			if dwsErr != nil && !errors.Is(dwsErr, context.Canceled) {
 				log.Error("disk worker scheduler error", "err", dwsErr)
 			}
@@ -92,12 +91,14 @@ func main() {
 		}()
 	}
 
+	var insertWg sync.WaitGroup
+	insertCtx, cancelInsert := context.WithCancel(context.Background())
 	if cfg.Insert.Enabled {
 		iws := insert.NewScheduler(log, &cfg.Insert, cfg.GetInsertTable(), blockCreateFunc, blockPool, insertQueue, metricsStore)
-		wg.Add(1)
+		insertWg.Add(1)
 		go func() {
-			defer wg.Done()
-			iwsErr := iws.Run(ctx)
+			defer insertWg.Done()
+			iwsErr := iws.Run(insertCtx)
 			if iwsErr != nil && !errors.Is(iwsErr, context.Canceled) {
 				log.Error("insert worker scheduler error", "err", iwsErr)
 			}
@@ -107,10 +108,12 @@ func main() {
 	select {
 	case <-terminate:
 		log.Info("stop requested")
-		cancelAll()
 	}
 
-	wg.Wait()
+	cancelDisk()
+	diskWg.Wait()
+	cancelInsert()
+	insertWg.Wait()
 	cancelMetrics()
 	metricsWg.Wait()
 

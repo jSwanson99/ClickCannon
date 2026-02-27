@@ -67,4 +67,25 @@ user:
   traces_table: otel_traces
   min_query_wait: 1s
   max_query_wait: 10s
+  # Queries is an array of queries that will be chosen by the user worker
+  queries:
+    # This SQL is a Go templated string and has some variables available.
+    # "FORMAT Null" is automatically appended to the end so that no query data is returned to the client.
+    # These variables are already SQL compatible and do not need quotes or escaping. See examples.
+    # Available values:
+    #  Table: the fully qualified database and table name: "example"."database"
+    #  TimeRangeStart: the start of the time range (current time minus the configured time_range): fromUnixTimestamp64Milli(...)
+    #  TimeRangeEnd: the end of the time range (the current time of the query being executed): fromUnixTimestamp64Milli(...)
+    #
+    # To use, use Go template syntax: {{.VariableName}}
+    #
+    - name: test
+      sql: "SELECT * FROM {{.Table}} WHERE timestamp >= {{.TimeRangeStart}} AND timestamp <= {{.TimeRangeEnd}}"
+      # Time range is optional, but can be used to populate the time range variables in the above SQL.
+      # The end time will be equal to the current time when the query is executed.
+      # The start time will be the current time minus the time_range duration below.
+      # You should have read.time_shift set to "all" for this to work as expected.
+      time_range: 15m
+    - sql: "SELECT 2"
+    - sql: "SELECT 3"
 

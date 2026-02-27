@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"otelspam/internal/block"
 	"sync"
 	"time"
 
@@ -21,18 +22,24 @@ type Worker struct {
 	dataType             string
 	targetBytesPerSecond uint64
 
+	blockPool  *block.StructPool[block.SharedColumns]
+	blockQueue chan block.SharedColumns
+
 	metricsQueue chan Entry
 	mu           sync.Mutex
 	metrics      map[Name]uint64
 	pointMetrics []Entry
 }
 
-func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond uint64, cfg *Config) (*Worker, error) {
+func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond uint64, cfg *Config, blockPool *block.StructPool[block.SharedColumns], blockQueue chan block.SharedColumns) (*Worker, error) {
 	w := Worker{
 		log:                  log.With("component", "metrics_worker", "data_type", dataType),
 		runID:                runID,
 		dataType:             dataType,
 		targetBytesPerSecond: targetBytesPerSecond,
+
+		blockPool:  blockPool,
+		blockQueue: blockQueue,
 
 		metricsQueue: make(chan Entry, 10_000),
 		metrics:      make(map[Name]uint64),
@@ -110,6 +117,12 @@ func (w *Worker) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(1 * time.Second):
+			// this should be set from somewhere else maybe, but this works fine for now
+			blockPoolCount, blockPoolCapacity := w.blockPool.Stats()
+			w.SetMetric(BlockPoolCount, uint64(blockPoolCount))
+			w.SetMetric(BlockPoolCapacity, uint64(blockPoolCapacity))
+			w.SetMetric(BlockQueueLength, uint64(len(w.blockQueue)))
+
 			// this should be dynamically adjustable in the future, but for now we set it constantly
 			w.SetMetric(TargetBytesPerSecond, w.targetBytesPerSecond)
 
@@ -174,6 +187,9 @@ func (w *Worker) resetMetrics() {
 		case ActiveReaders:
 		case ActiveInserters:
 		case ActiveUsers:
+		case BlockPoolCount:
+		case BlockPoolCapacity:
+		case BlockQueueLength:
 		default:
 			w.metrics[name] = 0
 		}

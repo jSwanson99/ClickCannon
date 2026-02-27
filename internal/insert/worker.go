@@ -26,13 +26,24 @@ type worker struct {
 
 	nodeBalancer *nodeBalancer
 
-	blockPool   *block.StructPool[block.SharedColumns]
-	insertQueue <-chan block.SharedColumns
+	blockCreateFunc func() block.SharedColumns
+	blockPool       *block.StructPool[block.SharedColumns]
+	insertQueue     <-chan block.SharedColumns
 
 	metrics metrics.Store
 }
 
-func newWorker(id int, log *slog.Logger, config *Config, nodeBalancer *nodeBalancer, blockPool *block.StructPool[block.SharedColumns], insertTable string, insertQueue <-chan block.SharedColumns, metrics metrics.Store) *worker {
+func newWorker(
+	id int,
+	log *slog.Logger,
+	config *Config,
+	nodeBalancer *nodeBalancer,
+	blockCreateFunc func() block.SharedColumns,
+	blockPool *block.StructPool[block.SharedColumns],
+	insertTable string,
+	insertQueue <-chan block.SharedColumns,
+	metrics metrics.Store,
+) *worker {
 	w := worker{
 		id:  id,
 		log: log.With("component", "insert_worker", "id", id),
@@ -44,8 +55,9 @@ func newWorker(id int, log *slog.Logger, config *Config, nodeBalancer *nodeBalan
 		chConfig: &config.ClickHouse,
 		table:    insertTable,
 
-		blockPool:   blockPool,
-		insertQueue: insertQueue,
+		blockCreateFunc: blockCreateFunc,
+		blockPool:       blockPool,
+		insertQueue:     insertQueue,
 
 		metrics: metrics,
 	}
@@ -62,9 +74,8 @@ func (w *worker) Run(ctx context.Context) error {
 	}
 	defer closeClient()
 
-	insertBlock := w.blockPool.Acquire()
+	insertBlock := w.blockCreateFunc()
 	insertInput := insertBlock.Input()
-	defer w.blockPool.Release(insertBlock)
 
 	for {
 		select {
@@ -92,6 +103,7 @@ func (w *worker) Run(ctx context.Context) error {
 
 				if currentInput != nil {
 					swapInput(currentInput, insertInput)
+					// TODO: verify this is called in the case of context cancelled, may have block leak
 					w.blockPool.Release(currentBlock)
 					currentBlock = nil
 					currentInput = nil

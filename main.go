@@ -22,17 +22,24 @@ func main() {
 
 	targetBytesPerSecond := cfg.Disk.MiBytesPerSecondLimit * 1024 * 1024
 
-	blocksToAlloc := cfg.Disk.Threads + cfg.Insert.Threads
+	blocksToAlloc := (cfg.Disk.Threads + cfg.Insert.Threads) * 4
 	insertQueue := make(chan block.SharedColumns, blocksToAlloc)
 	var (
 		blockPool *block.StructPool[block.SharedColumns]
 		err       error
 	)
+	var blockCreateFunc func() block.SharedColumns
 	if cfg.App.DataType == app.ConfigDataTypeLogs {
+		blockCreateFunc = func() block.SharedColumns {
+			return block.NewLogsSharedColumns()
+		}
 		blockPool, err = block.NewStructPool[block.SharedColumns](blocksToAlloc, func() (block.SharedColumns, error) {
 			return block.NewLogsSharedColumns(), nil
 		})
 	} else if cfg.App.DataType == app.ConfigDataTypeTraces {
+		blockCreateFunc = func() block.SharedColumns {
+			return block.NewTracesSharedColumns()
+		}
 		blockPool, err = block.NewStructPool[block.SharedColumns](blocksToAlloc, func() (block.SharedColumns, error) {
 			return block.NewTracesSharedColumns(), nil
 		})
@@ -50,7 +57,7 @@ func main() {
 
 	var metricsStore metrics.Store
 	if cfg.Metrics.Enabled {
-		m, metricsErr := metrics.NewWorker(log, runID, cfg.App.DataType, targetBytesPerSecond, &cfg.Metrics)
+		m, metricsErr := metrics.NewWorker(log, runID, cfg.App.DataType, targetBytesPerSecond, &cfg.Metrics, blockPool, insertQueue)
 		if metricsErr != nil {
 			log.Error("failed to create metrics worker", "err", metricsErr)
 		}
@@ -72,13 +79,13 @@ func main() {
 	ctx, cancelAll := context.WithCancel(context.Background())
 
 	if cfg.Disk.Enabled {
-		ds := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
+		dws := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			dsErr := ds.Run(ctx)
-			if dsErr != nil && !errors.Is(dsErr, context.Canceled) {
-				log.Error("disk worker scheduler error", "err", dsErr)
+			dwsErr := dws.Run(ctx)
+			if dwsErr != nil && !errors.Is(dwsErr, context.Canceled) {
+				log.Error("disk worker scheduler error", "err", dwsErr)
 			}
 
 			close(insertQueue)
@@ -86,13 +93,13 @@ func main() {
 	}
 
 	if cfg.Insert.Enabled {
-		is := insert.NewScheduler(log, &cfg.Insert, cfg.GetInsertTable(), blockPool, insertQueue, metricsStore)
+		iws := insert.NewScheduler(log, &cfg.Insert, cfg.GetInsertTable(), blockCreateFunc, blockPool, insertQueue, metricsStore)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			isErr := is.Run(ctx)
-			if isErr != nil && !errors.Is(isErr, context.Canceled) {
-				log.Error("insert worker scheduler error", "err", isErr)
+			iwsErr := iws.Run(ctx)
+			if iwsErr != nil && !errors.Is(iwsErr, context.Canceled) {
+				log.Error("insert worker scheduler error", "err", iwsErr)
 			}
 		}()
 	}

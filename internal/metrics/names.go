@@ -19,6 +19,10 @@ const (
 	ActiveInserters Name = "active_inserters"
 	ActiveUsers     Name = "active_users"
 
+	BlockPoolCount    Name = "block_pool_count"
+	BlockPoolCapacity Name = "block_pool_capacity"
+	BlockQueueLength  Name = "block_queue_length"
+
 	// Totals
 
 	TotalRows              Name = "total_rows"

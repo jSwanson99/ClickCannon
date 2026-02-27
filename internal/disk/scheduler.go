@@ -72,7 +72,9 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
+			s.metrics.IncrementMetric(metrics.ActiveReaders, 1)
 			s.runWorker(ctx, id, fileCh, firstTimestampReply)
+			s.metrics.DecrementMetric(metrics.ActiveReaders, 1)
 		}(i)
 	}
 

@@ -21,6 +21,10 @@ func NewStructPool[T any](poolSize int, newInstance func() (T, error)) (*StructP
 	return &pool, nil
 }
 
+func (p *StructPool[T]) Stats() (int, int) {
+	return len(p.pool), cap(p.pool)
+}
+
 func (p *StructPool[T]) Acquire() T {
 	return <-p.pool
 }

@@ -11,25 +11,35 @@ import (
 )
 
 type Scheduler struct {
-	log         *slog.Logger
-	workerLog   *slog.Logger
-	insertCfg   *Config
-	nb          *nodeBalancer
-	blockPool   *block.StructPool[block.SharedColumns]
-	queue       <-chan block.SharedColumns
-	metrics     metrics.Store
-	insertTable string
+	log             *slog.Logger
+	workerLog       *slog.Logger
+	insertCfg       *Config
+	nb              *nodeBalancer
+	blockCreateFunc func() block.SharedColumns
+	blockPool       *block.StructPool[block.SharedColumns]
+	queue           <-chan block.SharedColumns
+	metrics         metrics.Store
+	insertTable     string
 }
 
-func NewScheduler(log *slog.Logger, insertCfg *Config, insertTable string, blockPool *block.StructPool[block.SharedColumns], queue <-chan block.SharedColumns, metrics metrics.Store) *Scheduler {
+func NewScheduler(
+	log *slog.Logger,
+	insertCfg *Config,
+	insertTable string,
+	blockCreateFunc func() block.SharedColumns,
+	blockPool *block.StructPool[block.SharedColumns],
+	queue <-chan block.SharedColumns,
+	metrics metrics.Store,
+) *Scheduler {
 	return &Scheduler{
-		log:         log.With("component", "insert_scheduler"),
-		workerLog:   log,
-		insertCfg:   insertCfg,
-		blockPool:   blockPool,
-		queue:       queue,
-		metrics:     metrics,
-		insertTable: insertTable,
+		log:             log.With("component", "insert_scheduler"),
+		workerLog:       log,
+		insertCfg:       insertCfg,
+		blockCreateFunc: blockCreateFunc,
+		blockPool:       blockPool,
+		queue:           queue,
+		metrics:         metrics,
+		insertTable:     insertTable,
 	}
 }
 
@@ -50,7 +60,9 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
+			s.metrics.IncrementMetric(metrics.ActiveInserters, 1)
 			s.runWorker(ctx, id)
+			s.metrics.DecrementMetric(metrics.ActiveInserters, 1)
 		}(i)
 	}
 
@@ -82,7 +94,7 @@ func (s *Scheduler) runWorker(ctx context.Context, id int) {
 			}
 		}
 
-		w := newWorker(id, s.workerLog, s.insertCfg, s.nb, s.blockPool, s.insertTable, s.queue, s.metrics)
+		w := newWorker(id, s.workerLog, s.insertCfg, s.nb, s.blockCreateFunc, s.blockPool, s.insertTable, s.queue, s.metrics)
 		err := w.Run(ctx)
 
 		switch {

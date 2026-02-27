@@ -65,7 +65,7 @@ func (c Config) Validate() error {
 	}
 
 	if err := c.Insert.Validate(); err != nil {
-		return fmt.Errorf("disk: %w", err)
+		return fmt.Errorf("insert: %w", err)
 	}
 
 	if err := c.Metrics.Validate(); err != nil {

@@ -3,10 +3,16 @@ package app
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+func setupErr(err error) {
+	fmt.Println(err)
+	os.Exit(1)
+}
 
 func Setup() (string, *Config, *slog.Logger, func()) {
 	time.Local = time.UTC
@@ -15,7 +21,7 @@ func Setup() (string, *Config, *slog.Logger, func()) {
 
 	cfg, err := LoadConfig()
 	if err != nil {
-		panic(fmt.Errorf("failed to load config: %w", err))
+		setupErr(fmt.Errorf("failed to load config: %w", err))
 	}
 
 	if cfg.App.Seed == "" {
@@ -24,13 +30,13 @@ func Setup() (string, *Config, *slog.Logger, func()) {
 
 	logLevel, err := ParseLogLevel(cfg.App.LogLevel)
 	if err != nil {
-		panic(fmt.Errorf("failed to parse log level: %w", err))
+		setupErr(fmt.Errorf("failed to parse log level: %w", err))
 	}
 
 	logFileName := fmt.Sprintf("otelspam_%s.log", runID)
 	log, logFile, err := NewLogger(logFileName, logLevel, cfg.App.LogToConsole, cfg.App.LogToFile)
 	if err != nil {
-		panic(fmt.Errorf("failed to create logger: %w", err))
+		setupErr(fmt.Errorf("failed to create logger: %w", err))
 	}
 	log = log.With("run_id", runID)
 

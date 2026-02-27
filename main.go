@@ -45,9 +45,8 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt, syscall.SIGTERM)
 
-	ctx, cancelAll := context.WithCancel(context.Background())
-
-	var wg sync.WaitGroup
+	metricsCtx, cancelMetrics := context.WithCancel(context.Background())
+	var metricsWg sync.WaitGroup
 
 	var metricsStore metrics.Store
 	if cfg.Metrics.Enabled {
@@ -57,10 +56,10 @@ func main() {
 		}
 		metricsStore = m
 
-		wg.Add(1)
+		metricsWg.Add(1)
 		go func() {
-			defer wg.Done()
-			mErr := m.Run(ctx)
+			defer metricsWg.Done()
+			mErr := m.Run(metricsCtx)
 			if mErr != nil && !errors.Is(mErr, context.Canceled) {
 				log.Error("metrics worker error", "err", mErr)
 			}
@@ -68,6 +67,9 @@ func main() {
 	} else {
 		metricsStore = metrics.NewDisabledStore()
 	}
+
+	var wg sync.WaitGroup
+	ctx, cancelAll := context.WithCancel(context.Background())
 
 	if cfg.Disk.Enabled {
 		ds := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
@@ -102,6 +104,8 @@ func main() {
 	}
 
 	wg.Wait()
+	cancelMetrics()
+	metricsWg.Wait()
 
 	log.Info("done")
 }

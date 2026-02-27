@@ -1,35 +1,29 @@
-
-read:
-  # One of: logs, traces
+app:
+  log_level: debug
+  log_to_console: true
+  log_to_file: true
+  # Determines the data type being read/inserted for the test. One of: logs, traces
   data_type: traces
+  # A seed for the test. Will be used with random number generation for reproducible tests.
+  seed: some string
+
+disk:
+  enabled: true
+  threads: 2
   # Path to logs/traces directories. Files must be named .native or .native.zst
   logs_path: log_data
   traces_path: trace_data
-  # The number of read threads to use. One thread per file.
-  threads: 2
   # The speed limit for uncompressed data across all threads, in MiB
   mb_per_second_limit: 2048
-  # Set to true if you're only testing read performance off of disk, this will not send data to the insert queue
-  passthrough: false
-  # Shifts the timestamp of the data when reading from disk.
-  # Options: <empty>, none, date, all.
-  # Empty/"none" will do nothing and replay the data as it is written on disk.
-  # "date" will replace only the date component with the current date.
-  # "all" will shift the entire timestamp to the current time, relative to the first timestamp in the file.
-  shift_timestamp: all
-
 
 insert:
-  # The number of insert threads to use. One connection per thread.
+  enabled: true
   threads: 4
   # How many rows per INSERT command. Blocks will be streamed until this limit, then a new INSERT will start.
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
   # an exact limit.
-  max_rows_per_insert: 100000
-  # Distributes the connections across the cluster nodes.
-  # Requires multiple reconnects for hosts hidden behind a load balancer.
+  batch_size: 100000
   balance_nodes: false
-  # ClickHouse connection settings, also used for user queries
   clickhouse:
     address: localhost:9000
     secure: false
@@ -43,38 +37,27 @@ insert:
     logs_table: otel_logs
     traces_table: otel_traces
 
-user:
-  threads: 10
-  connections_per_user: 5
-  min_query_wait: 1s
-  max_query_wait: 10s
-  # Queries is an array of queries that will be chosen by the user worker
-  queries:
-      # This SQL is a Go templated string and has some variables available.
-      # "FORMAT Null" is automatically appended to the end so that no query data is returned to the client.
-      # These variables are already SQL compatible and do not need quotes or escaping. See examples.
-      # Available values:
-      #  Table: the fully qualified database and table name: "example"."database"
-      #  TimeRangeStart: the start of the time range (current time minus the configured time_range): fromUnixTimestamp64Milli(...)
-      #  TimeRangeEnd: the end of the time range (the current time of the query being executed): fromUnixTimestamp64Milli(...)
-      #
-      # To use, use Go template syntax: {{.VariableName}}
-      #
-    - name: test
-      sql: "SELECT * FROM {{.Table}} WHERE timestamp >= {{.TimeRangeStart}} AND timestamp <= {{.TimeRangeEnd}}"
-      # Time range is optional, but can be used to populate the time range variables in the above SQL.
-      # The end time will be equal to the current time when the query is executed.
-      # The start time will be the current time minus the time_range duration below.
-      # You should have read.time_shift set to "all" for this to work as expected.
-      time_range: 15m
-    - sql: "SELECT 2"
-    - sql: "SELECT 3"
 
 # Settings related to the program's read/insert metrics
 metrics:
+  enabled: true
   # ClickHouse DSN URL, same as OTel exporter. Optional, if empty then metrics won't be stored.
   clickhouse_dsn: tcp://localhost:9000
-  # Database and table for capturing performance metrics, these are created automatically.
+  # Database and tables for capturing performance metrics, these are created automatically.
   database: otelspam
   run_table: runs
   metrics_table: perf
+
+user:
+  enabled: true
+  threads: 10
+  connections_per_user: 2
+  # ClickHouse DSN URL, same as OTel exporter.
+  clickhouse_dsn: tcp://localhost:9000
+  # The database to query from
+  database: otelspam
+  logs_table: otel_logs
+  traces_table: otel_traces
+  min_query_wait: 1s
+  max_query_wait: 10s
+

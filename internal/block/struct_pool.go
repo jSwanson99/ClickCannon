@@ -1,4 +1,4 @@
-package main
+package block
 
 type StructPool[T any] struct {
 	pool chan T

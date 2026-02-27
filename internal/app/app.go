@@ -1,0 +1,54 @@
+package app
+
+import (
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+func Setup() (string, *Config, *slog.Logger, func()) {
+	time.Local = time.UTC
+
+	runID := NewRunID()
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		panic(fmt.Errorf("failed to load config: %w", err))
+	}
+
+	if cfg.App.Seed == "" {
+		cfg.App.Seed = runID
+	}
+
+	logLevel, err := ParseLogLevel(cfg.App.LogLevel)
+	if err != nil {
+		panic(fmt.Errorf("failed to parse log level: %w", err))
+	}
+
+	logFileName := fmt.Sprintf("otelspam_%s.log", runID)
+	log, logFile, err := NewLogger(logFileName, logLevel, cfg.App.LogToConsole, cfg.App.LogToFile)
+	if err != nil {
+		panic(fmt.Errorf("failed to create logger: %w", err))
+	}
+	log = log.With("run_id", runID)
+
+	var closeFunc func()
+	if logFile != nil {
+		closeFunc = func() {
+			fileCloseErr := logFile.Close()
+			if fileCloseErr != nil {
+				log.Error("failed to close log file", "file", logFileName, "err", fileCloseErr)
+			}
+		}
+	}
+
+	log.Info("starting otelspam", "seed", cfg.App.Seed, "data_type", cfg.App.DataType)
+
+	return runID, cfg, log, closeFunc
+}
+
+func NewRunID() string {
+	return uuid.Must(uuid.NewUUID()).String()
+}

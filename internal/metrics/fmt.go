@@ -1,8 +1,8 @@
-package main
+package metrics
 
 import "fmt"
 
-func FormatBytes(bytes uint64) string {
+func formatBytes(bytes uint64) string {
 	const unit = 1024
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
@@ -20,9 +20,9 @@ func FormatBytes(bytes uint64) string {
 	return fmt.Sprintf("%.2f %s", float64(bytes)/float64(div), units[exp+1])
 }
 
-func FormatNumber(n uint64) string {
+func formatNumber(n uint64) string {
 	if n < 0 {
-		return "-" + FormatNumber(-n)
+		return "-" + formatNumber(-n)
 	}
 
 	str := fmt.Sprintf("%d", n)

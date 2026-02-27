@@ -1,4 +1,4 @@
-package main
+package disk
 
 import (
 	"io"
@@ -64,26 +64,26 @@ type windowEntry struct {
 	bytes     int
 }
 
-const DEFAULT_LIMIT_FACTOR = 1
-const DEFAULT_LEARN_RATE = 0.1
-const DEFAULT_MOMENTUM = 0.9
-const DEFAULT_BURST_FACTOR = 0.01
+const DefaultLimitFactor = 1
+const DefaultLearnRate = 0.1
+const DefaultMomentum = 0.9
+const DefaultBurstFactor = 0.01
 
-func NewSpeedLimitedReader(r io.Reader, bytesPerSecond float64, onCount func(uint64)) *SpeedLimitedReader {
+func NewSpeedLimitedReader(r io.Reader, bytesPerSecond uint64, onCount func(uint64)) *SpeedLimitedReader {
 	windowSize := 1 * time.Second
 
 	slr := &SpeedLimitedReader{
 		exit:              make(chan struct{}),
 		reader:            r,
-		targetBytesPerSec: bytesPerSecond,
-		currentLimit:      bytesPerSecond * DEFAULT_LIMIT_FACTOR,
+		targetBytesPerSec: float64(bytesPerSecond),
+		currentLimit:      float64(bytesPerSecond) * DefaultLimitFactor,
 		window:            NewSlidingWindow(windowSize),
 		windowSize:        windowSize,
-		learningRate:      DEFAULT_LEARN_RATE,
-		momentum:          DEFAULT_MOMENTUM,
+		learningRate:      DefaultLearnRate,
+		momentum:          DefaultMomentum,
 		lastGradient:      0,
-		burstCapacity:     bytesPerSecond * DEFAULT_BURST_FACTOR,
-		burstTokens:       bytesPerSecond * DEFAULT_BURST_FACTOR,
+		burstCapacity:     float64(bytesPerSecond) * DefaultBurstFactor,
+		burstTokens:       float64(bytesPerSecond) * DefaultBurstFactor,
 		lastTokenFill:     time.Now(),
 		smoothingFactor:   0.95,
 		minChunkSize:      32768,
@@ -211,18 +211,18 @@ func (slr *SpeedLimitedReader) optimizeLimit() {
 	slr.currentLimit = math.Max(slr.targetBytesPerSec*0.8, math.Min(slr.targetBytesPerSec*1.2, slr.currentLimit))
 }
 
-func (slr *SpeedLimitedReader) Reset(bytesPerSec float64) {
+func (slr *SpeedLimitedReader) Reset(bytesPerSec uint64) {
 	slr.mu.Lock()
 	defer slr.mu.Unlock()
 
-	slr.targetBytesPerSec = bytesPerSec
-	slr.currentLimit = bytesPerSec * DEFAULT_LIMIT_FACTOR
+	slr.targetBytesPerSec = float64(bytesPerSec)
+	slr.currentLimit = float64(bytesPerSec) * DefaultLimitFactor
 	slr.window = NewSlidingWindow(slr.windowSize)
-	slr.learningRate = DEFAULT_LEARN_RATE
-	slr.momentum = DEFAULT_MOMENTUM
+	slr.learningRate = DefaultLearnRate
+	slr.momentum = DefaultMomentum
 	slr.lastGradient = 0
-	slr.burstCapacity = bytesPerSec * DEFAULT_BURST_FACTOR
-	slr.burstTokens = bytesPerSec * DEFAULT_BURST_FACTOR
+	slr.burstCapacity = float64(bytesPerSec) * DefaultBurstFactor
+	slr.burstTokens = float64(bytesPerSec) * DefaultBurstFactor
 	slr.lastTokenFill = time.Now()
 }
 

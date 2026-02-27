@@ -1,16 +1,19 @@
-package main
+package insert
 
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
-type NodeBalancer struct {
+type nodeBalancer struct {
+	log *slog.Logger
+
 	chConfig *ClickHouseConfig
 
 	nodeIPs []string
@@ -18,13 +21,14 @@ type NodeBalancer struct {
 	mu      sync.Mutex
 }
 
-func newNodeBalancer(chConfig *ClickHouseConfig) *NodeBalancer {
-	return &NodeBalancer{
+func newNodeBalancer(log *slog.Logger, chConfig *ClickHouseConfig) *nodeBalancer {
+	return &nodeBalancer{
+		log:      log.With("component", "node_balancer"),
 		chConfig: chConfig,
 	}
 }
 
-func (b *NodeBalancer) FetchNodes() error {
+func (b *nodeBalancer) FetchNodes() error {
 	opt := clickhouse.Options{
 		Addr: []string{b.chConfig.Address},
 		Auth: clickhouse.Auth{
@@ -40,8 +44,13 @@ func (b *NodeBalancer) FetchNodes() error {
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	defer conn.Close()
-	log.Println("[Node Balancer] clickhouse connected")
+	defer func(conn driver.Conn) {
+		closeErr := conn.Close()
+		if closeErr != nil {
+			b.log.Error("failed to close clickhouse conn", "err", closeErr)
+		}
+	}(conn)
+	b.log.Info("clickhouse connected")
 
 	sql := `SELECT host_address FROM system.clusters WHERE cluster='default'`
 	rows, err := conn.Query(context.Background(), sql)
@@ -57,15 +66,15 @@ func (b *NodeBalancer) FetchNodes() error {
 		}
 
 		b.nodeIPs = append(b.nodeIPs, nodeIP)
-		log.Println("[Node Balancer] discovered IP:", nodeIP)
+		b.log.Debug("discovered IP", "ip", nodeIP)
 	}
 
-	log.Printf("[Node Balancer] discovered %d IP(s)\n", len(b.nodeIPs))
+	b.log.Info("discovered IP(s)", "count", len(b.nodeIPs))
 
 	return nil
 }
 
-func (b *NodeBalancer) IsNextNode(ip string) bool {
+func (b *nodeBalancer) IsNextNode(ip string) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

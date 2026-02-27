@@ -29,7 +29,7 @@ type Worker struct {
 
 func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond uint64, cfg *Config) (*Worker, error) {
 	w := Worker{
-		log:                  log.With("component", "metrics_worker", "run_id", runID, "data_type", dataType),
+		log:                  log.With("component", "metrics_worker", "data_type", dataType),
 		runID:                runID,
 		dataType:             dataType,
 		targetBytesPerSecond: targetBytesPerSecond,
@@ -100,6 +100,9 @@ func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond ui
 }
 
 func (w *Worker) Run(ctx context.Context) error {
+	w.log.Info("started")
+	defer w.log.Info("stopped")
+
 	go w.processMetrics(ctx)
 
 	for {

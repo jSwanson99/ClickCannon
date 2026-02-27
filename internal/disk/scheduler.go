@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Scheduler struct {
@@ -20,6 +21,8 @@ type Scheduler struct {
 	diskCfg     *Config
 	folderPath  string
 	passthrough bool
+
+	setFirstTimestamp bool
 
 	blockPool   *block.StructPool[block.SharedColumns]
 	insertQueue chan<- block.SharedColumns
@@ -63,13 +66,21 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	s.log.Info("started")
 	var wg sync.WaitGroup
 	maxWorkers := min(s.diskCfg.Threads, len(dataFiles))
+	firstTimestampReply := make(chan time.Time, 1)
 
 	for i := range maxWorkers {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			s.runWorker(ctx, id, fileCh)
+			s.runWorker(ctx, id, fileCh, firstTimestampReply)
 		}(i)
+	}
+
+	select {
+	case <-ctx.Done():
+	case firstTimestamp := <-firstTimestampReply:
+		s.updateFirstTimestamp(firstTimestamp)
+		s.log.Info("updated first timestamp in dataset for workers", "count", len(s.workers), "first_timestamp", firstTimestamp)
 	}
 
 	wg.Wait()
@@ -78,7 +89,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) runWorker(ctx context.Context, slotID int, fileCh <-chan dataFile) {
+func (s *Scheduler) runWorker(ctx context.Context, workerID int, fileCh <-chan dataFile, firstTimestampReply chan<- time.Time) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -88,18 +99,18 @@ func (s *Scheduler) runWorker(ctx context.Context, slotID int, fileCh <-chan dat
 				return
 			}
 
-			w := newWorker(slotID, s.workerLog, file.Path, file.Compressed, s.diskCfg.ShiftTimestamp, s.getNewWorkerSpeed(), s.blockPool, s.insertQueue, s.metrics, s.passthrough)
+			w := newWorker(workerID, s.workerLog, file.Path, file.Compressed, s.diskCfg.ShiftTimestamp, s.getNewWorkerSpeed(), s.blockPool, s.insertQueue, s.metrics, s.passthrough, firstTimestampReply)
 
-			s.register(slotID, w)
+			s.register(workerID, w)
 			s.rebalanceSpeed()
 
 			err := w.Run(ctx)
 
-			s.unregister(slotID)
+			s.unregister(workerID)
 			s.rebalanceSpeed()
 
 			if err != nil && !errors.Is(err, context.Canceled) {
-				s.log.Warn("worker failed, skipping file", "worker_id", slotID, "file", file.Path, "err", err)
+				s.log.Warn("worker failed, skipping file", "worker_id", workerID, "file", file.Path, "err", err)
 			}
 		}
 	}
@@ -138,6 +149,15 @@ func (s *Scheduler) getNewWorkerSpeed() uint64 {
 
 	// TODO: this is lazy. +1, compared to rebalanceSpeed()
 	return (s.diskCfg.MiBytesPerSecondLimit * 1024 * 1024) / uint64(len(s.workers)+1)
+}
+
+func (s *Scheduler) updateFirstTimestamp(firstTimestamp time.Time) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, w := range s.workers {
+		w.SetFirstTimestamp(firstTimestamp)
+	}
 }
 
 type dataFile struct {

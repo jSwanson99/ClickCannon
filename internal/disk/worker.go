@@ -35,13 +35,28 @@ type worker struct {
 
 	metrics metrics.Store
 
+	// firstTimestamp is the first timestamp in the dataset across all workers and files. Important for time shifting.
 	firstTimestamp time.Time
+
+	firstTimestampReply chan<- time.Time
 
 	blockPool   *block.StructPool[block.SharedColumns]
 	insertQueue chan<- block.SharedColumns
 }
 
-func newWorker(id int, log *slog.Logger, filePath string, fileCompressed bool, shiftTimestamp string, bytesPerSecondLimit uint64, blockPool *block.StructPool[block.SharedColumns], insertQueue chan<- block.SharedColumns, metrics metrics.Store, passthrough bool) *worker {
+func newWorker(
+	id int,
+	log *slog.Logger,
+	filePath string,
+	fileCompressed bool,
+	shiftTimestamp string,
+	bytesPerSecondLimit uint64,
+	blockPool *block.StructPool[block.SharedColumns],
+	insertQueue chan<- block.SharedColumns,
+	metrics metrics.Store,
+	passthrough bool,
+	firstTimestampReply chan<- time.Time,
+) *worker {
 	return &worker{
 		id:  id,
 		log: log.With("component", "disk_worker", "id", id, "file", filePath, "compressed", fileCompressed),
@@ -57,7 +72,13 @@ func newWorker(id int, log *slog.Logger, filePath string, fileCompressed bool, s
 		metrics:     metrics,
 
 		passthrough: passthrough,
+
+		firstTimestampReply: firstTimestampReply,
 	}
+}
+
+func (w *worker) SetFirstTimestamp(firstTimestamp time.Time) {
+	w.firstTimestamp = firstTimestamp
 }
 
 func (w *worker) UpdateSpeedLimit(bytesPerSecondLimit uint64) {
@@ -85,6 +106,12 @@ func (w *worker) Run(ctx context.Context) error {
 			w.log.Info("stopped")
 			return ctx.Err()
 		default:
+		}
+
+		// Wait for first thread to find the first timestamp in the first file
+		if w.id != 0 && w.firstTimestamp.IsZero() {
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
 
 		err := w.decodeBlock(rd, &dec)
@@ -165,14 +192,15 @@ func (w *worker) decodeBlock(rd *proto.Reader, dec *proto.Block) error {
 		return fmt.Errorf("failed to decode block: %w", err)
 	}
 
+	if w.id == 0 && w.firstTimestamp.IsZero() {
+		w.firstTimestamp = cols.FirstTimestamp()
+		w.firstTimestampReply <- w.firstTimestamp
+	}
+
 	switch w.shiftTimestamp {
 	case ShiftTimestampDate:
 		cols.UpdateDate()
 	case ShiftTimestampAll:
-		if w.firstTimestamp.IsZero() {
-			w.firstTimestamp = cols.FirstTimestamp()
-		}
-
 		cols.UpdateTimestamp(w.firstTimestamp)
 	}
 

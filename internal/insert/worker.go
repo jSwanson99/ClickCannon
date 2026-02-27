@@ -144,7 +144,7 @@ func (w *worker) Run(ctx context.Context) error {
 				}
 				return nil
 			},
-		}); err != nil {
+		}); err != nil && !errors.Is(err, context.Canceled) {
 			w.log.Error("failed to insert", "err", err)
 		}
 	}
@@ -187,7 +187,7 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 		hostIP, err = w.getNode(ctx, c)
 		if err != nil {
 			w.log.Error("failed to get node", "attempt", attempt, "err", err)
-			if closeErr := c.Close(); closeErr != nil {
+			if closeErr := c.Close(); closeErr != nil && !errors.Is(closeErr, ch.ErrClosed) {
 				w.log.Error("failed to close conn", "attempt", attempt, "err", closeErr)
 			}
 
@@ -199,7 +199,7 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 		}
 
 		w.log.Debug("incorrect node IP in sequence, reconnecting", "attempt", attempt, "ip", hostIP)
-		if closeErr := c.Close(); closeErr != nil {
+		if closeErr := c.Close(); closeErr != nil && !errors.Is(closeErr, ch.ErrClosed) {
 			w.log.Error("failed to close conn", "attempt", attempt, "err", closeErr)
 		}
 	}
@@ -207,7 +207,7 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 
 	closeFunc := func() {
 		closeErr := c.Close()
-		if closeErr != nil {
+		if closeErr != nil && !errors.Is(closeErr, ch.ErrClosed) {
 			w.log.Error("failed to close conn", "err", closeErr)
 		}
 	}

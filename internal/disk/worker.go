@@ -19,6 +19,7 @@ import (
 const ShiftTimestampNone = "none" // Does not shift input data timestamp, replays data as written.
 const ShiftTimestampDate = "date" // Shifts only the date of the input data's timestamp to be relative to the current date.
 const ShiftTimestampAll = "all"   // Shifts the input data's timestamp to be relative to the current time.
+const ShiftTimestampNow = "now"   // Shifts the input data's timestamp to be the current time.
 
 type worker struct {
 	id  int
@@ -202,6 +203,8 @@ func (w *worker) decodeBlock(rd *proto.Reader, dec *proto.Block) error {
 		cols.UpdateDate()
 	case ShiftTimestampAll:
 		cols.UpdateTimestamp(w.firstTimestamp)
+	case ShiftTimestampNow:
+		cols.UpdateTimestampNow()
 	}
 
 	w.metrics.IncrementMetric(metrics.ReadRowsPerSecond, uint64(colsRes.Rows()))

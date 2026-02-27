@@ -151,3 +151,11 @@ func (c *LogsSharedColumns) UpdateTimestamp(startTime time.Time) {
 		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
 	}
 }
+
+func (c *LogsSharedColumns) UpdateTimestampNow() {
+	for i := range c.timestamp.Data {
+		shiftedTime := time.Now()
+		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
+		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+	}
+}

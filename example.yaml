@@ -15,6 +15,13 @@ disk:
   traces_path: trace_data
   # The speed limit for uncompressed data across all threads, in MiB
   mb_per_second_limit: 2048
+  # Shifts the timestamp of the data when reading from disk.
+  # Options: <empty>, none, date, all, now.
+  # Empty/"none" will do nothing and replay the data as it is written on disk. Event times will be unchanged.
+  # "date" will replace only the date component with the current date. The event timestamp will keep its time component, but with the current date.
+  # "all" will replay the data with its original timings by measuring the difference between the event time and the first timestamp in the first file loaded.
+  # "now" will simply set the event time to the current timestamp.
+  shift_timestamp: all
 
 insert:
   enabled: true

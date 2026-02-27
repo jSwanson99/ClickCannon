@@ -175,3 +175,11 @@ func (c *TracesSharedColumns) UpdateTimestamp(startTime time.Time) {
 		// TODO: Events.Timestamp column?
 	}
 }
+
+func (c *TracesSharedColumns) UpdateTimestampNow() {
+	for i := range c.timestamp.Data {
+		shiftedTime := time.Now()
+		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
+		// TODO: Events.Timestamp column?
+	}
+}

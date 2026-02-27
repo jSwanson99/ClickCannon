@@ -39,8 +39,8 @@ func (c Config) Validate() error {
 
 	if c.ShiftTimestamp == "" {
 		c.ShiftTimestamp = ShiftTimestampNone
-	} else if c.ShiftTimestamp != ShiftTimestampNone && c.ShiftTimestamp != ShiftTimestampDate && c.ShiftTimestamp != ShiftTimestampAll {
-		return errors.New("must set shift_timestamp to one of: <empty>, none, date, all")
+	} else if c.ShiftTimestamp != ShiftTimestampNone && c.ShiftTimestamp != ShiftTimestampDate && c.ShiftTimestamp != ShiftTimestampAll && c.ShiftTimestamp != ShiftTimestampNow {
+		return errors.New("must set shift_timestamp to one of: <empty>, none, date, all, now")
 	}
 
 	return nil

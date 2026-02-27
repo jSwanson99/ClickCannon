@@ -19,6 +19,8 @@ type SharedColumns interface {
 	FirstTimestamp() time.Time
 	// UpdateTimestamp for shifting the timestamp to be relative to current time
 	UpdateTimestamp(startTime time.Time)
+	// UpdateTimestampNow for shifting the timestamp to be the current time
+	UpdateTimestampNow()
 }
 
 // ShiftDateToToday shifts the time.Time to current date without affecting time component

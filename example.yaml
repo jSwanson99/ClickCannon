@@ -1,7 +1,7 @@
 app:
   log_level: debug
   log_to_console: true
-  log_to_file: true
+  log_to_file: false
   # Determines the data type being read/inserted for the test. One of: logs, traces
   data_type: traces
   # A seed for the test. Will be used with random number generation for reproducible tests.
@@ -13,18 +13,28 @@ disk:
   # Path to logs/traces directories. Files must be named .native or .native.zst
   logs_path: log_data
   traces_path: trace_data
+  # Should the file queue be looped? (Consider the shift_timestamp setting. May cause uneven distribution of data.)
+  # Also consider the thread count.
+  # If there are more threads than files, the looped files will immediately go in the queue.
+  loop: false
   # The speed limit for uncompressed data across all threads, in MiB
   mb_per_second_limit: 2048
   # Shifts the timestamp of the data when reading from disk.
   # Options: <empty>, none, date, all, now.
   # Empty/"none" will do nothing and replay the data as it is written on disk. Event times will be unchanged.
-  # "date" will replace only the date component with the current date. The event timestamp will keep its time component, but with the current date.
-  # "all" will replay the data with its original timings by measuring the difference between the event time and the first timestamp in the first file loaded.
-  # "now" will simply set the event time to the current timestamp.
+  # "date" will replace only the date component with the current date.
+  #        The event timestamp will keep its time component, but with the current date.
+  #        This may cause issues if your data set goes across multiple days.
+  # "all" will replay the data with its original timings by measuring the difference between the
+  #       event time and the first timestamp in the first file loaded. This difference is then added to the
+  #       program start time.
+  #       It's replaying the original data but with the first event time being the program start time.
+  # "now" will simply set the event time to the current timestamp at the time the row is processed.
+  #       This may lead to unrealistic time distributions where an entire block of rows share the same timestamp.
   shift_timestamp: all
 
 insert:
-  enabled: true
+  enabled: false
   threads: 4
   # How many rows per INSERT command. Blocks will be streamed until this limit, then a new INSERT will start.
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not

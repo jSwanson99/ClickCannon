@@ -44,11 +44,12 @@ func ShiftDateToToday(oldTime time.Time) time.Time {
 	return newTime
 }
 
-// ShiftTimestamp shifts the time.Time to be relative to the current time.
+var execStartTime = time.Now()
+
+// ShiftTimestamp shifts the time.Time to be relative to the program start time.
 // startTime is the reference point (first data point for the data set)
 // oldTime is the timestamp to shift
 func ShiftTimestamp(startTime, oldTime time.Time) time.Time {
-	now := time.Now()
 	offset := oldTime.Sub(startTime)
-	return now.Add(offset)
+	return execStartTime.Add(offset)
 }

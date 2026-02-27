@@ -101,7 +101,7 @@ func (s *Scheduler) generateFiles(ctx context.Context, dataFiles []dataFile) <-c
 					return
 				case ch <- f:
 					if i > 0 && j == 0 {
-						s.log.Info("looping files", "loop_count", i, "file_count", len(dataFiles))
+						s.log.Info("looped files", "loop_count", i, "file_count", len(dataFiles))
 					}
 				}
 			}

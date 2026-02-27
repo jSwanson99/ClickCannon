@@ -33,7 +33,8 @@ func Setup() (string, *Config, *slog.Logger, func()) {
 		setupErr(fmt.Errorf("failed to parse log level: %w", err))
 	}
 
-	logFileName := fmt.Sprintf("otelspam_%s.log", runID)
+	timeStr := time.Now().Format("2006-01-02_15-04-05")
+	logFileName := fmt.Sprintf("otelspam_%s_%s.log", timeStr, runID[:8])
 	log, logFile, err := NewLogger(logFileName, logLevel, cfg.App.LogToConsole, cfg.App.LogToFile)
 	if err != nil {
 		setupErr(fmt.Errorf("failed to create logger: %w", err))

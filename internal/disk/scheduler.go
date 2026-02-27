@@ -47,6 +47,8 @@ func NewScheduler(log *slog.Logger, diskCfg *Config, folderPath string, blockPoo
 }
 
 func (s *Scheduler) Run(ctx context.Context) error {
+	s.log.Info("started")
+
 	dataFiles, err := getDataFiles(s.folderPath)
 	if err != nil {
 		return fmt.Errorf("failed to load data files: %w", err)
@@ -57,18 +59,13 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		return nil
 	}
 
-	fileCh := make(chan dataFile, len(dataFiles))
-	for _, f := range dataFiles {
-		fileCh <- f
-	}
-	close(fileCh)
+	s.log.Info("found files", "file_count", len(dataFiles))
 
-	s.log.Info("started")
 	var wg sync.WaitGroup
-	maxWorkers := min(s.diskCfg.Threads, len(dataFiles))
+	fileCh := s.generateFiles(ctx, dataFiles)
 	firstTimestampReply := make(chan time.Time, 1)
 
-	for i := range maxWorkers {
+	for i := range s.diskCfg.Threads {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
@@ -89,6 +86,35 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	s.log.Info("stopped")
 
 	return nil
+}
+
+func (s *Scheduler) generateFiles(ctx context.Context, dataFiles []dataFile) <-chan dataFile {
+	ch := make(chan dataFile)
+
+	go func() {
+		defer close(ch)
+		i := 0
+		for {
+			for j, f := range dataFiles {
+				select {
+				case <-ctx.Done():
+					return
+				case ch <- f:
+					if i > 0 && j == 0 {
+						s.log.Info("looping files", "loop_count", i, "file_count", len(dataFiles))
+					}
+				}
+			}
+
+			if !s.diskCfg.Loop {
+				return
+			}
+
+			i++
+		}
+	}()
+
+	return ch
 }
 
 func (s *Scheduler) runWorker(ctx context.Context, workerID int, fileCh <-chan dataFile, firstTimestampReply chan<- time.Time) {

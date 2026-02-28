@@ -12,15 +12,15 @@ type TracesSharedColumns struct {
 	spanID             proto.ColStr
 	parentSpanID       proto.ColStr
 	traceState         proto.ColStr
-	spanName           *proto.ColLowCardinality[string]
-	spanKind           *proto.ColLowCardinality[string]
-	serviceName        *proto.ColLowCardinality[string]
+	spanName           *LowCard[string]
+	spanKind           *LowCard[string]
+	serviceName        *LowCard[string]
 	resourceAttributes *proto.ColMap[string, string]
 	scopeName          proto.ColStr
 	scopeVersion       proto.ColStr
 	spanAttributes     *proto.ColMap[string, string]
 	duration           proto.ColUInt64
-	statusCode         *proto.ColLowCardinality[string]
+	statusCode         *LowCard[string]
 	statusMessage      proto.ColStr
 	eventsTimestamps   *proto.ColArr[proto.DateTime64]
 	eventsNames        *proto.ColArr[string]

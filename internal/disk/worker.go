@@ -38,7 +38,7 @@ type worker struct {
 	timestampSet     bool
 	replayTimeKeeper *block.ReplayTimeKeeper
 
-	blockPool   *block.StructPool[block.SharedColumns]
+	blockPool   block.Pool
 	insertQueue chan<- block.SharedColumns
 }
 
@@ -48,7 +48,7 @@ func newWorker(
 	file dataFile,
 	shiftTimestamp string,
 	bytesPerSecondLimit uint64,
-	blockPool *block.StructPool[block.SharedColumns],
+	blockPool block.Pool,
 	insertQueue chan<- block.SharedColumns,
 	metrics metrics.Store,
 	passthrough bool,

@@ -10,6 +10,8 @@ type Config struct {
 	LogsPath   string `yaml:"logs_path"`
 	TracesPath string `yaml:"traces_path"`
 
+	ReuseBlocks bool `yaml:"reuse_blocks"`
+
 	Loop bool `yaml:"loop"`
 
 	// How many MiB decompressed bytes per second can be read from disk

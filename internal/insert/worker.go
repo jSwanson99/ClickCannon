@@ -27,7 +27,7 @@ type worker struct {
 	nodeBalancer *nodeBalancer
 
 	blockCreateFunc func() block.SharedColumns
-	blockPool       *block.StructPool[block.SharedColumns]
+	blockPool       block.Pool
 	insertQueue     <-chan block.SharedColumns
 
 	metrics metrics.Store
@@ -39,7 +39,7 @@ func newWorker(
 	config *Config,
 	nodeBalancer *nodeBalancer,
 	blockCreateFunc func() block.SharedColumns,
-	blockPool *block.StructPool[block.SharedColumns],
+	blockPool block.Pool,
 	insertTable string,
 	insertQueue <-chan block.SharedColumns,
 	metrics metrics.Store,
@@ -115,6 +115,7 @@ func (w *worker) Run(ctx context.Context) error {
 
 				if currentBlock == nil {
 					select {
+					// TODO: check ctx?
 					case nextBlock, ok := <-w.insertQueue:
 						if !ok {
 							w.log.Debug("closing insert, channel not ok", "rows", rowCount)

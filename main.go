@@ -26,6 +26,7 @@ func main() {
 		"disk_enabled", cfg.Disk.Enabled,
 		"disk_threads", cfg.Disk.Threads,
 		"mi_bytes_per_second_limit", cfg.Disk.MiBytesPerSecondLimit,
+		"reuse_blocks", cfg.Disk.ReuseBlocks,
 		"insert_enabled", cfg.Insert.Enabled,
 		"insert_threads", cfg.Insert.Threads,
 		"batch_size", cfg.Insert.BatchSize,
@@ -34,7 +35,7 @@ func main() {
 	blocksToAlloc := (cfg.Disk.Threads + cfg.Insert.Threads) * 4
 	insertQueue := make(chan block.SharedColumns, blocksToAlloc)
 	var (
-		blockPool *block.StructPool[block.SharedColumns]
+		blockPool block.Pool
 		err       error
 	)
 	var blockCreateFunc func() block.SharedColumns
@@ -42,17 +43,20 @@ func main() {
 		blockCreateFunc = func() block.SharedColumns {
 			return block.NewLogsSharedColumns()
 		}
-		blockPool, err = block.NewStructPool[block.SharedColumns](blocksToAlloc, func() (block.SharedColumns, error) {
-			return block.NewLogsSharedColumns(), nil
-		})
 	} else if cfg.App.DataType == app.ConfigDataTypeTraces {
 		blockCreateFunc = func() block.SharedColumns {
 			return block.NewTracesSharedColumns()
 		}
+	}
+
+	if cfg.Disk.ReuseBlocks {
 		blockPool, err = block.NewStructPool[block.SharedColumns](blocksToAlloc, func() (block.SharedColumns, error) {
 			return block.NewTracesSharedColumns(), nil
 		})
+	} else {
+		blockPool = block.NewGarbageBlockPool(blockCreateFunc)
 	}
+
 	if err != nil {
 		log.Error("failed to alloc blocks", "err", err)
 		return

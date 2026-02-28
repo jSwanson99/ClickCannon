@@ -17,7 +17,7 @@ type Scheduler struct {
 	folderPath  string
 	passthrough bool
 
-	blockPool   *block.StructPool[block.SharedColumns]
+	blockPool   block.Pool
 	insertQueue chan<- block.SharedColumns
 	metrics     metrics.Store
 
@@ -27,7 +27,7 @@ type Scheduler struct {
 	workers map[int]*worker
 }
 
-func NewScheduler(log *slog.Logger, diskCfg *Config, folderPath string, blockPool *block.StructPool[block.SharedColumns], insertQueue chan<- block.SharedColumns, metrics metrics.Store, passthrough bool) *Scheduler {
+func NewScheduler(log *slog.Logger, diskCfg *Config, folderPath string, blockPool block.Pool, insertQueue chan<- block.SharedColumns, metrics metrics.Store, passthrough bool) *Scheduler {
 	return &Scheduler{
 		log:              log.With("component", "disk_scheduler"),
 		workerLog:        log,

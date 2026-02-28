@@ -12,15 +12,15 @@ type LogsSharedColumns struct {
 	traceID            proto.ColStr
 	spanID             proto.ColStr
 	traceFlags         proto.ColUInt8
-	severityText       *proto.ColLowCardinality[string]
+	severityText       *LowCard[string]
 	severityNumber     proto.ColUInt8
-	serviceName        *proto.ColLowCardinality[string]
+	serviceName        *LowCard[string]
 	body               proto.ColStr
-	resourceSchemaUrl  *proto.ColLowCardinality[string]
+	resourceSchemaUrl  *LowCard[string]
 	resourceAttributes *proto.ColMap[string, string]
-	scopeSchemaUrl     *proto.ColLowCardinality[string]
+	scopeSchemaUrl     *LowCard[string]
 	scopeName          proto.ColStr
-	scopeVersion       *proto.ColLowCardinality[string]
+	scopeVersion       *LowCard[string]
 	scopeAttributes    *proto.ColMap[string, string]
 	logAttributes      *proto.ColMap[string, string]
 

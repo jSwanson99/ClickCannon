@@ -16,7 +16,7 @@ type Scheduler struct {
 	insertCfg       *Config
 	nb              *nodeBalancer
 	blockCreateFunc func() block.SharedColumns
-	blockPool       *block.StructPool[block.SharedColumns]
+	blockPool       block.Pool
 	queue           <-chan block.SharedColumns
 	metrics         metrics.Store
 	insertTable     string
@@ -27,7 +27,7 @@ func NewScheduler(
 	insertCfg *Config,
 	insertTable string,
 	blockCreateFunc func() block.SharedColumns,
-	blockPool *block.StructPool[block.SharedColumns],
+	blockPool block.Pool,
 	queue <-chan block.SharedColumns,
 	metrics metrics.Store,
 ) *Scheduler {

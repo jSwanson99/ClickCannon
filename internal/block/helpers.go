@@ -6,14 +6,49 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 )
 
-func newColLowCardinalityString(strSize, batchSize int) *proto.ColLowCardinality[string] {
-	lc := proto.NewLowCardinality[string](&proto.ColStr{
-		Buf: make([]byte, 0, strSize*batchSize),
-		Pos: make([]proto.Position, 0, batchSize),
-	})
-	lc.Values = make([]string, 0, batchSize)
+// LowCard is a custom LowCardinality wrapper type.
+// The standard LowCardinality[T] is broken in ch-go, something isn't being reset properly
+// when I use it with reusable blocks. This wrapper type uses the Raw version, and since we only use the string
+// implementation, it works for now. It's actually magic; this took forever to debug.
+type LowCard[T comparable] struct {
+	proto.ColLowCardinalityRaw
+}
 
-	return lc
+func (c *LowCard[T]) Append(v T) {
+	panic("custom otelspam LowCardinality type is missing Append implementation")
+}
+
+func (c *LowCard[T]) AppendArr(v []T) {
+	panic("custom otelspam LowCardinality type is missing AppendArr implementation")
+}
+
+func (c *LowCard[T]) Row(i int) T {
+	panic("custom otelspam LowCardinality type is missing Row implementation")
+}
+
+// If the above magic wrapper type fails, you can fall back to this but be sure to set reuse_blocks to false in config.
+//func newColLowCardinalityString(strSize, batchSize int) *proto.ColLowCardinality[string] {
+//	lc := proto.NewLowCardinality[string](&proto.ColStr{
+//		Buf: make([]byte, 0, strSize*batchSize),
+//		Pos: make([]proto.Position, 0, batchSize),
+//	})
+//	lc.Values = make([]string, 0, batchSize)
+//
+//	return lc
+//}
+
+func newColLowCardinalityString(strSize, batchSize int) *LowCard[string] {
+	lc := LowCard[string]{
+		ColLowCardinalityRaw: proto.ColLowCardinalityRaw{
+			Index: &proto.ColStr{
+				Buf: make([]byte, 0, strSize*batchSize),
+				Pos: make([]proto.Position, 0, batchSize),
+			},
+			Key: proto.KeyUInt8,
+		},
+	}
+
+	return &lc
 }
 
 func newColMapLowCardinalityStringString(strSize, batchSize int) *proto.ColMap[string, string] {

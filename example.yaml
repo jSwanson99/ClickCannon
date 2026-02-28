@@ -13,6 +13,11 @@ disk:
   # Path to logs/traces directories. Files must be named .native or .native.zst
   logs_path: log_data
   traces_path: trace_data
+  # Blocks can be reused to reduce garbage in the program and improve throughput stability, but
+  # ch-go has a bug where some columns aren't properly reset. I've hacked around this for now and so
+  # you shouldn't notice it, but maybe I missed a detail when querying the data back.
+  # Set this to false if you notice the inserted data has maps that have mismatched key/value pairs, or empty columns.
+  reuse_blocks: true
   # Should the file queue be looped? (Consider the shift_timestamp setting. May cause uneven distribution of data.)
   # Also consider the thread count.
   # If there are more threads than files, the looped files will immediately go in the queue.

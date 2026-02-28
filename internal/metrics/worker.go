@@ -22,7 +22,7 @@ type Worker struct {
 	dataType             string
 	targetBytesPerSecond uint64
 
-	blockPool  *block.StructPool[block.SharedColumns]
+	blockPool  block.Pool
 	blockQueue chan block.SharedColumns
 
 	metricsQueue chan Entry
@@ -31,7 +31,7 @@ type Worker struct {
 	pointMetrics []Entry
 }
 
-func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond uint64, cfg *Config, blockPool *block.StructPool[block.SharedColumns], blockQueue chan block.SharedColumns) (*Worker, error) {
+func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond uint64, cfg *Config, blockPool block.Pool, blockQueue chan block.SharedColumns) (*Worker, error) {
 	w := Worker{
 		log:                  log.With("component", "metrics_worker", "data_type", dataType),
 		runID:                runID,

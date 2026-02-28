@@ -160,6 +160,14 @@ func (c *TracesSharedColumns) UpdateDate() {
 	}
 }
 
+func (c *TracesSharedColumns) UpdateTimestampMinute() {
+	for i := range c.timestamp.Data {
+		shiftedTime := ShiftTimestampMinute(c.timestamp.Data[i].Time(c.timestamp.Precision))
+		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
+		// TODO: Events.Timestamp column?
+	}
+}
+
 func (c *TracesSharedColumns) FirstTimestamp() time.Time {
 	if len(c.timestamp.Data) > 0 {
 		return c.timestamp.Data[0].Time(c.timestamp.Precision)

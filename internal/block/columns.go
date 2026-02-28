@@ -25,6 +25,7 @@ type SharedColumns interface {
 	ShiftTimestamp(snapshot ReplayTimeSnapshot)
 	// UpdateTimestampNow for shifting the timestamp to be the current time
 	UpdateTimestampNow()
+	UpdateTimestampMinute()
 }
 
 // ShiftDateToToday shifts the time.Time to current date without affecting time component
@@ -43,6 +44,23 @@ func ShiftDateToToday(oldTime time.Time) time.Time {
 		sec,
 		nsec,
 		loc,
+	)
+
+	return newTime
+}
+
+// ShiftTimestampMinute shifts the time.Time to current minute without affecting seconds component
+func ShiftTimestampMinute(original time.Time) time.Time {
+	now := time.Now()
+	newTime := time.Date(
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		now.Hour(),
+		now.Minute(),
+		original.Second(),
+		original.Nanosecond(),
+		original.Location(),
 	)
 
 	return newTime

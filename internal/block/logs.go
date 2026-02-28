@@ -136,6 +136,14 @@ func (c *LogsSharedColumns) UpdateDate() {
 	}
 }
 
+func (c *LogsSharedColumns) UpdateTimestampMinute() {
+	for i := range c.timestamp.Data {
+		shiftedTime := ShiftTimestampMinute(c.timestamp.Data[i].Time(c.timestamp.Precision))
+		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
+		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+	}
+}
+
 func (c *LogsSharedColumns) FirstTimestamp() time.Time {
 	if len(c.timestamp.Data) > 0 {
 		return c.timestamp.Data[0].Time(c.timestamp.Precision)

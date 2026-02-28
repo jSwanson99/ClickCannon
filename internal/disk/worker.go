@@ -179,11 +179,14 @@ func (w *worker) decodeBlock(rd *proto.Reader, dec *proto.Block) error {
 		return fmt.Errorf("failed to decode block: %w", err)
 	}
 
-	if w.id == 0 && !w.timestampSet {
-		w.replayTimeKeeper.ReportEarliestTimestamp(cols.FirstTimestamp())
-		w.timestampSet = true
+	if w.file.LoopIndex == 0 {
+		if w.id == 0 && !w.timestampSet {
+			w.replayTimeKeeper.ReportEarliestTimestamp(cols.FirstTimestamp())
+			w.timestampSet = true
+		}
+
+		w.replayTimeKeeper.ReportLatestTimestamp(cols.LastTimestamp())
 	}
-	w.replayTimeKeeper.ReportLatestTimestamp(cols.LastTimestamp())
 
 	switch w.shiftTimestamp {
 	case ShiftTimestampDate:

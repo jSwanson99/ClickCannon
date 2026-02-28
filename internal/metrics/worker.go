@@ -127,9 +127,10 @@ func (w *Worker) Run(ctx context.Context) error {
 			w.SetMetric(TargetBytesPerSecond, w.targetBytesPerSecond)
 
 			if w.insertSQL != "" {
-				err := w.pushMetrics(context.Background())
+				err := w.pushMetrics(ctx)
 				if err != nil {
 					w.log.Error("failed to push metrics", "err", err)
+					continue
 				}
 			}
 
@@ -242,26 +243,35 @@ func (w *Worker) pushMetrics(ctx context.Context) error {
 }
 
 func (w *Worker) IncrementMetric(name Name, delta uint64) {
-	w.metricsQueue <- Entry{
+	select {
+	case w.metricsQueue <- Entry{
 		Mode:  EntryModeIncrement,
 		Name:  name,
 		Value: delta,
+	}:
+	default:
 	}
 }
 
 func (w *Worker) DecrementMetric(name Name, delta uint64) {
-	w.metricsQueue <- Entry{
+	select {
+	case w.metricsQueue <- Entry{
 		Mode:  EntryModeDecrement,
 		Name:  name,
 		Value: delta,
+	}:
+	default:
 	}
 }
 
 func (w *Worker) SetMetric(name Name, value uint64) {
-	w.metricsQueue <- Entry{
+	select {
+	case w.metricsQueue <- Entry{
 		Mode:  EntryModeSet,
 		Name:  name,
 		Value: value,
+	}:
+	default:
 	}
 }
 
@@ -273,11 +283,14 @@ func (w *Worker) GetMetric(name Name) uint64 {
 }
 
 func (w *Worker) AddMetricPoint(name Name, meta string, value uint64) {
-	w.metricsQueue <- Entry{
+	select {
+	case w.metricsQueue <- Entry{
 		Mode:      EntryModePoint,
 		Timestamp: time.Now(),
 		Meta:      meta,
 		Name:      name,
 		Value:     value,
+	}:
+	default:
 	}
 }

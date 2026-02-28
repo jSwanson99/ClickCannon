@@ -73,6 +73,7 @@ func main() {
 		m, metricsErr := metrics.NewWorker(log, runID, cfg.App.DataType, targetBytesPerSecond, &cfg.Metrics, blockPool, insertQueue)
 		if metricsErr != nil {
 			log.Error("failed to create metrics worker", "err", metricsErr)
+			return
 		}
 		metricsStore = m
 

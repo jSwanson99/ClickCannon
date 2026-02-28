@@ -115,10 +115,11 @@ func (w *worker) Run(ctx context.Context) error {
 
 				if currentBlock == nil {
 					select {
-					// TODO: check ctx?
+					case <-ctx.Done():
+						return io.EOF
 					case nextBlock, ok := <-w.insertQueue:
 						if !ok {
-							w.log.Debug("closing insert, channel not ok", "rows", rowCount)
+							w.log.Debug("closing insert, queue channel not ok", "rows", rowCount)
 							return io.EOF
 						}
 						currentBlock = nextBlock
@@ -158,7 +159,19 @@ func (w *worker) Run(ctx context.Context) error {
 				return nil
 			},
 		}); err != nil && !errors.Is(err, context.Canceled) {
-			w.log.Error("failed to insert", "err", err)
+			if currentBlock != nil {
+				w.log.Debug("releasing leftover block")
+
+				if currentInput != nil {
+					insertBlock.Reset()
+					swapInput(currentInput, insertInput)
+				}
+				w.blockPool.Release(currentBlock)
+				currentBlock = nil
+				currentInput = nil
+			}
+
+			return err
 		}
 	}
 
@@ -186,14 +199,17 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 		chOpts.Compression, _ = ch.CompressionString(w.chConfig.Compression)
 	}
 
-	var c *ch.Client
-	var hostIP string
+	var (
+		c      *ch.Client
+		hostIP string
+		err    error
+	)
 	for i := 0; i < 100; i++ {
 		attempt := i + 1
-		var err error
 		c, err = ch.Dial(ctx, chOpts)
 		if err != nil {
 			w.log.Error("failed to dial", "attempt", attempt, "err", err)
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
@@ -216,6 +232,11 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 			w.log.Error("failed to close conn", "attempt", attempt, "err", closeErr)
 		}
 	}
+
+	if c == nil {
+		return nil, nil, fmt.Errorf("failed to connect: %w", err)
+	}
+
 	w.log.Info("clickhouse connected", "ip", hostIP)
 
 	closeFunc := func() {

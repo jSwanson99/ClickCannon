@@ -101,7 +101,7 @@ func (w *worker) Run(ctx context.Context) error {
 		default:
 		}
 
-		err := w.decodeBlock(rd, &dec)
+		err := w.decodeBlock(ctx, rd, &dec)
 		if errors.Is(err, io.EOF) {
 			w.log.Info("finished")
 			return nil
@@ -167,7 +167,7 @@ func (w *worker) buildReader() (*proto.Reader, func(), error) {
 	return proto.NewReader(w.speedRd), cleanup, nil
 }
 
-func (w *worker) decodeBlock(rd *proto.Reader, dec *proto.Block) error {
+func (w *worker) decodeBlock(ctx context.Context, rd *proto.Reader, dec *proto.Block) error {
 	cols := w.blockPool.Acquire()
 	cols.Reset()
 	colsRes := cols.Results()
@@ -207,8 +207,13 @@ func (w *worker) decodeBlock(rd *proto.Reader, dec *proto.Block) error {
 		// Passthrough for testing max disk read speed.
 		// Block is immediately released, never sent to the insert queue.
 		w.blockPool.Release(cols)
-	} else {
-		w.insertQueue <- cols
+
+		return nil
+	}
+
+	select {
+	case <-ctx.Done():
+	case w.insertQueue <- cols:
 	}
 
 	return nil

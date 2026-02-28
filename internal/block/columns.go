@@ -13,12 +13,16 @@ type SharedColumns interface {
 	Results() proto.Results
 	// Input structure for block inserting
 	Input() proto.Input
-	// UpdateDate for shifting the date component on old data to today
-	UpdateDate()
+
 	// FirstTimestamp Returns the first timestamp in the block
 	FirstTimestamp() time.Time
-	// UpdateTimestamp for shifting the timestamp to be relative to current time
-	UpdateTimestamp(startTime time.Time)
+	// LastTimestamp Returns the last timestamp in the block
+	LastTimestamp() time.Time
+
+	// UpdateDate for shifting the date component on old data to today
+	UpdateDate()
+	// ShiftTimestamp applies a replay time snapshot for shifting the timestamp
+	ShiftTimestamp(snapshot ReplayTimeSnapshot)
 	// UpdateTimestampNow for shifting the timestamp to be the current time
 	UpdateTimestampNow()
 }
@@ -42,14 +46,4 @@ func ShiftDateToToday(oldTime time.Time) time.Time {
 	)
 
 	return newTime
-}
-
-var execStartTime = time.Now()
-
-// ShiftTimestamp shifts the time.Time to be relative to the program start time.
-// startTime is the reference point (first data point for the data set)
-// oldTime is the timestamp to shift
-func ShiftTimestamp(startTime, oldTime time.Time) time.Time {
-	offset := oldTime.Sub(startTime)
-	return execStartTime.Add(offset)
 }

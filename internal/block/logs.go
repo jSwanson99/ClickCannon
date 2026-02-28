@@ -144,9 +144,17 @@ func (c *LogsSharedColumns) FirstTimestamp() time.Time {
 	return time.Time{}
 }
 
-func (c *LogsSharedColumns) UpdateTimestamp(startTime time.Time) {
+func (c *LogsSharedColumns) LastTimestamp() time.Time {
+	if len(c.timestamp.Data) > 0 {
+		return c.timestamp.Data[len(c.timestamp.Data)-1].Time(c.timestamp.Precision)
+	}
+
+	return time.Time{}
+}
+
+func (c *LogsSharedColumns) ShiftTimestamp(snapshot ReplayTimeSnapshot) {
 	for i := range c.timestamp.Data {
-		shiftedTime := ShiftTimestamp(startTime, c.timestamp.Data[i].Time(c.timestamp.Precision))
+		shiftedTime := snapshot.ShiftTimestamp(c.timestamp.Data[i].Time(c.timestamp.Precision))
 		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
 		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
 	}

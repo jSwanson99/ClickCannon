@@ -29,6 +29,9 @@ disk:
   #       event time and the first timestamp in the first file loaded. This difference is then added to the
   #       program start time.
   #       It's replaying the original data but with the first event time being the program start time.
+  #       If looping is enabled, the program will track the range of time that the dataset covers and account
+  #       for its duration between loops.
+  #       There may be some overlap where the first files end and the looped file queue starts.
   # "now" will simply set the event time to the current timestamp at the time the row is processed.
   #       This may lead to unrealistic time distributions where an entire block of rows share the same timestamp.
   shift_timestamp: all

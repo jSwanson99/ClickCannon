@@ -168,9 +168,17 @@ func (c *TracesSharedColumns) FirstTimestamp() time.Time {
 	return time.Time{}
 }
 
-func (c *TracesSharedColumns) UpdateTimestamp(startTime time.Time) {
+func (c *TracesSharedColumns) LastTimestamp() time.Time {
+	if len(c.timestamp.Data) > 0 {
+		return c.timestamp.Data[len(c.timestamp.Data)-1].Time(c.timestamp.Precision)
+	}
+
+	return time.Time{}
+}
+
+func (c *TracesSharedColumns) ShiftTimestamp(snapshot ReplayTimeSnapshot) {
 	for i := range c.timestamp.Data {
-		shiftedTime := ShiftTimestamp(startTime, c.timestamp.Data[i].Time(c.timestamp.Precision))
+		shiftedTime := snapshot.ShiftTimestamp(c.timestamp.Data[i].Time(c.timestamp.Precision))
 		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
 		// TODO: Events.Timestamp column?
 	}

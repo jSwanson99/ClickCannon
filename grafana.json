@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 50,
+    "generation": 51,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -1669,9 +1669,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT any(data_type), FROM otelspam.runs WHERE run_id = '${run_id}' AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT any(data_type), FROM otelspam.runs WHERE run_id = '${run_id}'"
                       },
                       "version": "v0"
                     },
@@ -1899,7 +1899,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": false,
+              "collapse": true,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {

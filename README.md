@@ -1,5 +1,5 @@
 <p align="center">
-	<img src=".static/logo.png" width="300px" align="center">
+	<img src=".static/logo.png" width="400px" align="center">
 	<h1 align="center">OTelSpam</h1>
 </p>
 

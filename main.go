@@ -22,6 +22,15 @@ func main() {
 
 	targetBytesPerSecond := cfg.Disk.MiBytesPerSecondLimit * 1024 * 1024
 
+	log.Info("config",
+		"disk_enabled", cfg.Disk.Enabled,
+		"disk_threads", cfg.Disk.Threads,
+		"mi_bytes_per_second_limit", cfg.Disk.MiBytesPerSecondLimit,
+		"insert_enabled", cfg.Insert.Enabled,
+		"insert_threads", cfg.Insert.Threads,
+		"batch_size", cfg.Insert.BatchSize,
+	)
+
 	blocksToAlloc := (cfg.Disk.Threads + cfg.Insert.Threads) * 4
 	insertQueue := make(chan block.SharedColumns, blocksToAlloc)
 	var (

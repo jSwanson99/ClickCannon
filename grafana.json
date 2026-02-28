@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 49,
+    "generation": 50,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -60,9 +60,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('target_bytes_per_second', 'read_uncompressed_bytes_per_second', 'read_compressed_bytes_per_second', 'insert_bytes_per_second')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('target_bytes_per_second', 'target_worker_bytes_per_second', 'read_uncompressed_bytes_per_second', 'read_compressed_bytes_per_second', 'insert_bytes_per_second')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },

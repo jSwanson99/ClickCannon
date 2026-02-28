@@ -180,10 +180,11 @@ func (w *Worker) resetMetrics() {
 	for name := range w.metrics {
 		// Skip resetting these. They should probably go in their own table or something
 		switch name {
-		case TargetBytesPerSecond:
 		case TotalRows:
 		case TotalBytesCompressed:
 		case TotalBytesUncompressed:
+		case TargetBytesPerSecond:
+		case TargetWorkerBytesPerSecond:
 		case ActiveReaders:
 		case ActiveInserters:
 		case ActiveUsers:

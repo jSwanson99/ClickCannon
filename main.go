@@ -25,7 +25,7 @@ func main() {
 	log.Info("config",
 		"disk_enabled", cfg.Disk.Enabled,
 		"disk_threads", cfg.Disk.Threads,
-		"mi_bytes_per_second_limit", cfg.Disk.MiBytesPerSecondLimit,
+		"mb_per_second_limit", cfg.Disk.MiBytesPerSecondLimit,
 		"reuse_blocks", cfg.Disk.ReuseBlocks,
 		"insert_enabled", cfg.Insert.Enabled,
 		"insert_threads", cfg.Insert.Threads,

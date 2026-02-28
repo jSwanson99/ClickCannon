@@ -160,8 +160,8 @@ func (s *Scheduler) unregister(id int) {
 }
 
 func (s *Scheduler) rebalanceSpeed() {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	count := len(s.workers)
 	if count == 0 {
@@ -169,9 +169,12 @@ func (s *Scheduler) rebalanceSpeed() {
 	}
 
 	perWorker := (s.diskCfg.MiBytesPerSecondLimit * 1024 * 1024) / uint64(count)
+
 	for _, w := range s.workers {
 		w.UpdateSpeedLimit(perWorker)
 	}
+
+	s.metrics.SetMetric(metrics.TargetWorkerBytesPerSecond, perWorker)
 }
 
 func (s *Scheduler) getNewWorkerSpeed() uint64 {

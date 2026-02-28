@@ -11,9 +11,11 @@ const (
 	InsertRowsPerSecond            Name = "insert_rows_per_second"
 	InsertBytesPerSecond           Name = "insert_bytes_per_second"
 	UserQueriesPerSecond           Name = "user_queries_per_second"
-	TargetBytesPerSecond           Name = "target_bytes_per_second"
 
 	// State counters
+
+	TargetBytesPerSecond       Name = "target_bytes_per_second"
+	TargetWorkerBytesPerSecond Name = "target_worker_bytes_per_second"
 
 	ActiveReaders   Name = "active_readers"
 	ActiveInserters Name = "active_inserters"

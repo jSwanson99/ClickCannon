@@ -168,6 +168,7 @@ func (w *worker) buildReader() (*proto.Reader, func(), error) {
 
 func (w *worker) decodeBlock(rd *proto.Reader, dec *proto.Block) error {
 	cols := w.blockPool.Acquire()
+	cols.Reset()
 	colsRes := cols.Results()
 	err := dec.DecodeRawBlock(rd, 54451, colsRes)
 	if errors.Is(err, io.EOF) {

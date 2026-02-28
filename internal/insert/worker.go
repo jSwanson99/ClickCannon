@@ -200,26 +200,27 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 	}
 
 	var (
-		c      *ch.Client
-		hostIP string
-		err    error
+		c         *ch.Client
+		closeFunc func()
+		hostIP    string
+		err       error
 	)
 	for i := 0; i < 100; i++ {
 		attempt := i + 1
 		c, err = ch.Dial(ctx, chOpts)
 		if err != nil {
-			w.log.Error("failed to dial", "attempt", attempt, "err", err)
-			time.Sleep(100 * time.Millisecond)
-			continue
+			return nil, nil, fmt.Errorf("failed to dial: %w", err)
+		}
+		closeFunc = func() {
+			if closeErr := c.Close(); closeErr != nil && !errors.Is(closeErr, ch.ErrClosed) {
+				w.log.Error("failed to close conn", "err", closeErr)
+			}
 		}
 
 		hostIP, err = w.getNode(ctx, c)
 		if err != nil {
 			w.log.Error("failed to get node", "attempt", attempt, "err", err)
-			if closeErr := c.Close(); closeErr != nil && !errors.Is(closeErr, ch.ErrClosed) {
-				w.log.Error("failed to close conn", "attempt", attempt, "err", closeErr)
-			}
-
+			closeFunc()
 			continue
 		}
 
@@ -228,9 +229,7 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 		}
 
 		w.log.Debug("incorrect node IP in sequence, reconnecting", "attempt", attempt, "ip", hostIP)
-		if closeErr := c.Close(); closeErr != nil && !errors.Is(closeErr, ch.ErrClosed) {
-			w.log.Error("failed to close conn", "attempt", attempt, "err", closeErr)
-		}
+		closeFunc()
 	}
 
 	if c == nil {
@@ -238,14 +237,6 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 	}
 
 	w.log.Info("clickhouse connected", "ip", hostIP)
-
-	closeFunc := func() {
-		closeErr := c.Close()
-		if closeErr != nil && !errors.Is(closeErr, ch.ErrClosed) {
-			w.log.Error("failed to close conn", "err", closeErr)
-		}
-	}
-
 	return c, closeFunc, nil
 }
 

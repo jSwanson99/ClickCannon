@@ -56,7 +56,7 @@ func (k *ReplayTimeKeeper) Run(ctx context.Context) {
 	}
 }
 
-// ReportEarliestTimestamp should only be called once by the first disk worker
+// ReportEarliestTimestamp should only be called once by the worker with first file
 func (k *ReplayTimeKeeper) ReportEarliestTimestamp(t time.Time) {
 	k.mu.Lock()
 	defer k.mu.Unlock()

@@ -180,7 +180,7 @@ func (w *worker) decodeBlock(rd *proto.Reader, dec *proto.Block) error {
 	}
 
 	if w.file.LoopIndex == 0 {
-		if w.id == 0 && !w.timestampSet {
+		if w.file.Index == 0 && !w.timestampSet {
 			w.replayTimeKeeper.ReportEarliestTimestamp(cols.FirstTimestamp())
 			w.timestampSet = true
 		}

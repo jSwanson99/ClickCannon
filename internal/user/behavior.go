@@ -89,13 +89,14 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 	}
 
 	if q.PreflightQuery != nil {
-		val, err := b.queryRunner.FetchValue(ctx, q.PreflightQuery.SQL, q.PreflightQuery.Settings, params.Params())
+		binds, err := b.queryRunner.ExecPreflight(ctx, q.PreflightQuery.Binds, q.PreflightQuery.SQL, q.PreflightQuery.Settings, params.Params())
 		if errors.Is(err, context.Canceled) {
 			return nil, err
 		} else if err != nil {
-			return nil, fmt.Errorf("preflight %q: %w", q.PreflightQuery.Bind, err)
+			return nil, fmt.Errorf("preflight query for query (index=%d, name=%q) failed: %w", queryIndex, q.Name, err)
 		}
-		params.Preflight[q.PreflightQuery.Bind] = val
+
+		params.Preflight = binds
 	}
 
 	return &ExecutableQuery{
@@ -143,7 +144,7 @@ func (b *QueriesBehavior) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
 		if !ok {
 			return nil
 		}
-		
+
 		b.sampledTimeRange = &resolved
 	}
 

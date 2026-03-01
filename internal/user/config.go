@@ -201,7 +201,7 @@ func validateFormatNull(sql string) error {
 type PreflightQueryConfig struct {
 	SQL      string `yaml:"sql"`
 	Settings map[string]string
-	Bind     string `yaml:"bind"`
+	Binds    []string `yaml:"binds"`
 }
 
 func (c PreflightQueryConfig) Validate() error {
@@ -209,8 +209,14 @@ func (c PreflightQueryConfig) Validate() error {
 		return errors.New("sql must not be empty")
 	}
 
-	if strings.TrimSpace(c.Bind) == "" {
-		return errors.New("bind must not be empty")
+	if len(c.Binds) == 0 {
+		return errors.New("binds array cannot be empty")
+	}
+
+	for i, bindName := range c.Binds {
+		if strings.TrimSpace(bindName) == "" {
+			return fmt.Errorf("binds[%d]: bind name cannot be empty", i)
+		}
 	}
 
 	return nil

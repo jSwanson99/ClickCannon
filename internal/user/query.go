@@ -12,7 +12,7 @@ import (
 
 type QueryRunner interface {
 	Exec(ctx context.Context, q ExecutableQuery) (QueryResult, error)
-	FetchValue(ctx context.Context, sql string, settings map[string]string, params []any) (string, error)
+	ExecPreflight(ctx context.Context, bindNames []string, sql string, settings map[string]string, params []any) (map[string]string, error)
 }
 
 type ExecutableQuery struct {
@@ -103,22 +103,32 @@ func (r *ClickHouseQueryRunner) Exec(ctx context.Context, q ExecutableQuery) (Qu
 	}, nil
 }
 
-func (r *ClickHouseQueryRunner) FetchValue(ctx context.Context, sql string, settings map[string]string, params []any) (string, error) {
+func (r *ClickHouseQueryRunner) ExecPreflight(ctx context.Context, bindNames []string, sql string, settings map[string]string, params []any) (map[string]string, error) {
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settingsToClickHouseSettings(settings)))
 	row := r.client.QueryRow(ctx, sql, params...)
 	if errors.Is(row.Err(), context.Canceled) {
-		return "", row.Err()
+		return nil, row.Err()
 	} else if row.Err() != nil {
-		return "", fmt.Errorf("failed to run fetch value query: %w", row.Err())
+		return nil, fmt.Errorf("failed to run fetch value query: %w", row.Err())
 	}
 
-	var value string
-	err := row.Scan(&value)
+	bindValues := make([]string, len(bindNames))
+	scanTargets := make([]any, len(bindValues))
+	for i := range bindValues {
+		scanTargets[i] = &bindValues[i]
+	}
+
+	err := row.Scan(scanTargets...)
 	if err != nil {
-		return "", fmt.Errorf("failed to scan value for fetch value query: %w", err)
+		return nil, fmt.Errorf("failed to scan values in preflight query: %w", err)
 	}
 
-	return value, nil
+	binds := make(map[string]string, len(bindNames))
+	for i, name := range bindNames {
+		binds[name] = bindValues[i]
+	}
+
+	return binds, nil
 }
 
 func settingsToClickHouseSettings(settings map[string]string) clickhouse.Settings {

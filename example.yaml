@@ -190,12 +190,14 @@ user:
 
         - name: "Preflight query — binds a value before executing the main query"
           # The preflight_query latency does not count against the main query.
-          # It fetches a single string value and binds it as a named parameter.
+          # It fetches one or more string values and binds them as named parameters.
           # The same time range context is available to the preflight query.
-          # Make sure this only returns 1 row that is a String.
+          # Make sure this only returns 1 row, and that all columns are of String type.
+          # The names are bound in order of the columns returned.
+          # You may need to do some casting to fit your values in the main query since these are all Strings.
           preflight_query:
             sql: |
-              SELECT TraceId
+              SELECT TraceId, SpanName
               FROM {database:Identifier}.{table:Identifier}
               WHERE Timestamp >= {time_start:DateTime64(3)}
                 AND Timestamp <= {time_end:DateTime64(3)}
@@ -204,7 +206,9 @@ user:
             # Optional query settings
             settings:
               max_execution_time: 60
-            bind: TraceId  # available as {TraceId:String} in the main query
+            binds:
+              - TraceId  # available as {TraceId:String} in the main query
+              - SpanName  # available as {SpanName:String} in the main query
           sql: |
             SELECT *
             FROM {database:Identifier}.{table:Identifier}

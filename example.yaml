@@ -146,8 +146,8 @@ user:
           sql: |
             SELECT count()
             FROM {database:Identifier}.{table:Identifier}
-            WHERE Timestamp >= {time_start:DateTime64(9)}
-              AND Timestamp <= {time_end:DateTime64(9)}
+            WHERE Timestamp >= {time_start:DateTime64(3)}
+              AND Timestamp <= {time_end:DateTime64(3)}
           time_range:
             type: fixed
             lookback: 1h  # always [anchor - 1h, anchor]
@@ -156,8 +156,8 @@ user:
           sql: |
             SELECT count()
             FROM {database:Identifier}.{table:Identifier}
-            WHERE Timestamp >= {time_start:DateTime64(9)}
-              AND Timestamp <= {time_end:DateTime64(9)}
+            WHERE Timestamp >= {time_start:DateTime64(3)}
+              AND Timestamp <= {time_end:DateTime64(3)}
           time_range:
             type: exponential
             mean: 30m
@@ -168,8 +168,8 @@ user:
           sql: |
             SELECT count()
             FROM {database:Identifier}.{table:Identifier}
-            WHERE Timestamp >= {time_start:DateTime64(9)}
-              AND Timestamp <= {time_end:DateTime64(9)}
+            WHERE Timestamp >= {time_start:DateTime64(3)}
+              AND Timestamp <= {time_end:DateTime64(3)}
           time_range:
             type: log_normal
             mean: 2h
@@ -184,8 +184,8 @@ user:
             sql: |
               SELECT TraceId
               FROM {database:Identifier}.{table:Identifier}
-              WHERE Timestamp >= {time_start:DateTime64(9)}
-                AND Timestamp <= {time_end:DateTime64(9)}
+              WHERE Timestamp >= {time_start:DateTime64(3)}
+                AND Timestamp <= {time_end:DateTime64(3)}
               ORDER BY Timestamp ASC
               LIMIT 1
             bind: TraceId  # available as {TraceId:String} in the main query

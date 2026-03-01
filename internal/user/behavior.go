@@ -91,7 +91,7 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 	}
 
 	if q.PreflightQuery != nil {
-		val, err := b.queryRunner.FetchValue(ctx, q.PreflightQuery.SQL, params.Params())
+		val, err := b.queryRunner.FetchValue(ctx, q.PreflightQuery.SQL, q.PreflightQuery.Settings, params.Params())
 		if errors.Is(err, context.Canceled) {
 			return nil, err
 		} else if err != nil {
@@ -105,6 +105,7 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 		QueryIndex: queryIndex,
 		Name:       q.Name,
 		SQL:        TryAppendFormatNull(q.SQL),
+		Settings:   q.Settings,
 		Params:     params.Params(),
 		Perf:       q.Perf,
 	}, nil

@@ -5,14 +5,14 @@
 
 app:
   # A helpful name for identifying multiple runs from this config
-  name: insert traces 2 GiB/s
+  name: "insert traces 2 GiB/s"
   log_level: debug
   log_to_console: true
   log_to_file: false
   # Determines the data type being read/inserted for the test. One of: logs, traces
   data_type: traces
   # A seed for the test. Will be used with random number generation for reproducible tests.
-  seed: some string
+  seed: "some string"
 
 disk:
   enabled: true
@@ -134,6 +134,9 @@ user:
             FROM {database:Identifier}.{table:Identifier}
             WHERE Timestamp >= {time_start:DateTime64(3)}
               AND Timestamp <= {time_end:DateTime64(3)}
+          # Optional query settings
+          settings:
+            max_execution_time: 60
           # Optional: perf targets, stored as metadata on each latency metric.
           perf:
             # You can define all or none of these, but it is limited to p50, p90, p95, and p99.
@@ -189,6 +192,9 @@ user:
                 AND Timestamp <= {time_end:DateTime64(3)}
               ORDER BY Timestamp ASC
               LIMIT 1
+            # Optional query settings
+            settings:
+              max_execution_time: 60
             bind: TraceId  # available as {TraceId:String} in the main query
           sql: |
             SELECT *

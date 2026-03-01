@@ -12,13 +12,14 @@ import (
 
 type QueryRunner interface {
 	Exec(ctx context.Context, q ExecutableQuery) (QueryResult, error)
-	FetchValue(ctx context.Context, sql string, params []any) (string, error)
+	FetchValue(ctx context.Context, sql string, settings map[string]string, params []any) (string, error)
 }
 
 type ExecutableQuery struct {
 	QueryIndex int
 	Name       string
 	SQL        string
+	Settings   map[string]string
 	Params     []any
 	Perf       *PerfConfig
 }
@@ -86,6 +87,8 @@ func NewClickHouseQueryRunner(cfg *Config) (*ClickHouseQueryRunner, error) {
 }
 
 func (r *ClickHouseQueryRunner) Exec(ctx context.Context, q ExecutableQuery) (QueryResult, error) {
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settingsToClickHouseSettings(q.Settings)))
+
 	queryStart := time.Now()
 	err := r.client.Exec(ctx, q.SQL, q.Params...)
 	if errors.Is(err, context.Canceled) {
@@ -100,7 +103,8 @@ func (r *ClickHouseQueryRunner) Exec(ctx context.Context, q ExecutableQuery) (Qu
 	}, nil
 }
 
-func (r *ClickHouseQueryRunner) FetchValue(ctx context.Context, sql string, params []any) (string, error) {
+func (r *ClickHouseQueryRunner) FetchValue(ctx context.Context, sql string, settings map[string]string, params []any) (string, error) {
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settingsToClickHouseSettings(settings)))
 	row := r.client.QueryRow(ctx, sql, params...)
 	if errors.Is(row.Err(), context.Canceled) {
 		return "", row.Err()
@@ -115,4 +119,17 @@ func (r *ClickHouseQueryRunner) FetchValue(ctx context.Context, sql string, para
 	}
 
 	return value, nil
+}
+
+func settingsToClickHouseSettings(settings map[string]string) clickhouse.Settings {
+	chSettings := make(clickhouse.Settings, len(settings))
+	if settings == nil {
+		return chSettings
+	}
+
+	for k, v := range settings {
+		chSettings[k] = v
+	}
+
+	return chSettings
 }

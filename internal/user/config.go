@@ -151,6 +151,7 @@ type QueryConfig struct {
 	Perf           *PerfConfig           `yaml:"perf"`
 	TimeRange      *TimeRangeConfig      `yaml:"time_range"`
 	PreflightQuery *PreflightQueryConfig `yaml:"preflight_query"`
+	Settings       map[string]string     `yaml:"settings"`
 }
 
 func (c QueryConfig) Validate() error {
@@ -163,7 +164,7 @@ func (c QueryConfig) Validate() error {
 	}
 
 	if c.PreflightQuery != nil {
-		if err := c.PreflightQuery.validate(); err != nil {
+		if err := c.PreflightQuery.Validate(); err != nil {
 			return fmt.Errorf("preflight_query: %w", err)
 		}
 	}
@@ -187,11 +188,12 @@ func validateFormatNull(sql string) error {
 }
 
 type PreflightQueryConfig struct {
-	SQL  string `yaml:"sql"`
-	Bind string `yaml:"bind"`
+	SQL      string `yaml:"sql"`
+	Settings map[string]string
+	Bind     string `yaml:"bind"`
 }
 
-func (c PreflightQueryConfig) validate() error {
+func (c PreflightQueryConfig) Validate() error {
 	if strings.TrimSpace(c.SQL) == "" {
 		return errors.New("sql must not be empty")
 	}

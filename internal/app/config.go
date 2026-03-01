@@ -8,6 +8,7 @@ import (
 	"otelspam/internal/disk"
 	"otelspam/internal/insert"
 	"otelspam/internal/metrics"
+	"otelspam/internal/user"
 	"path/filepath"
 
 	"github.com/goccy/go-yaml"
@@ -23,12 +24,17 @@ type Config struct {
 		LogToConsole bool   `yaml:"log_to_console"`
 		LogLevel     string `yaml:"log_level"`
 		DataType     string `yaml:"data_type"`
-		Seed         string `yaml:"seed"`
+		// TODO: disk might need these for time shift
+		//DatasetUnixStart uint64 `yaml:"dataset_unix_start"`
+		//DatasetUnixEnd   uint64 `yaml:"dataset_unix_end"`
+		//DatasetRowCount  uint64 `yaml:"dataset_row_count"`
+		Seed string `yaml:"seed"`
 	} `yaml:"app"`
 
 	Disk    disk.Config    `yaml:"disk"`
 	Insert  insert.Config  `yaml:"insert"`
 	Metrics metrics.Config `yaml:"metrics"`
+	User    user.Config    `yaml:"user"`
 }
 
 func (c Config) GetDataFolder() string {
@@ -72,6 +78,10 @@ func (c Config) Validate() error {
 
 	if err := c.Metrics.Validate(); err != nil {
 		return fmt.Errorf("metrics: %w", err)
+	}
+
+	if err := c.User.Validate(); err != nil {
+		return fmt.Errorf("user: %w", err)
 	}
 
 	return nil

@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 51,
+    "generation": 61,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -280,7 +280,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  quantile(0.5)(value) as count,\n  toStartOfInterval(timestamp, INTERVAL 10 SECOND) time\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('user_queries_per_second')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
+                        "rawSql": "SELECT\n  metric_name as name,\n  quantile(0.5)(value) as count,\n  toStartOfInterval(timestamp, INTERVAL 10 SECOND) time\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('user_queries_per_second', 'failed_user_queries_per_second')\n  AND $__timeFilter(timestamp)\nGROUP BY name, time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -354,7 +354,38 @@
                   },
                   "unit": "reqps"
                 },
-                "overrides": []
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "count user_queries_per_second"
+                    },
+                    "properties": [
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "green",
+                          "mode": "fixed"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "count failed_user_queries_per_second"
+                    },
+                    "properties": [
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "red",
+                          "mode": "fixed"
+                        }
+                      }
+                    ]
+                  }
+                ]
               },
               "options": {
                 "legend": {
@@ -406,7 +437,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_meta,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY metric_meta, timestamp\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name, timestamp\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -532,7 +563,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  metric_meta as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  -- count(*) as count,\n  quantile(0.5)(value) as p50,\n  quantile(0.90)(value) as p90\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC\nLIMIT 25"
+                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  attributes['query_name'] as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  -- count(*) as count,\n  quantile(0.5)(value) as p50,\n  quantile(0.90)(value) as p90\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC\nLIMIT 25"
                       },
                       "version": "v0"
                     },
@@ -541,19 +572,7 @@
                 }
               ],
               "queryOptions": {},
-              "transformations": [
-                {
-                  "kind": "formatString",
-                  "spec": {
-                    "id": "formatString",
-                    "options": {
-                      "outputFormat": "Substring",
-                      "stringField": "query_name",
-                      "substringEnd": 64
-                    }
-                  }
-                }
-              ]
+              "transformations": []
             }
           },
           "description": "",
@@ -700,7 +719,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  metric_meta as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  count(*) as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY query_name ASC\nLIMIT 25"
+                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  count(*) as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY query_name ASC\nLIMIT 25"
                       },
                       "version": "v0"
                     },
@@ -921,6 +940,165 @@
                   "mode": "multi",
                   "sort": "none"
                 }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-18": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 1,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "table",
+                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  any(toUInt64OrZero(attributes['perf.p50'])) as p50,\n  any(toUInt64OrZero(attributes['perf.p90'])) as p90\n  -- any(toUInt64OrZero(attributes['perf.p95'])) as p95,\n  -- any(toUInt64OrZero(attributes['perf.p99'])) as p99\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY query_name ASC\nLIMIT 25"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": [
+                {
+                  "kind": "formatString",
+                  "spec": {
+                    "id": "formatString",
+                    "options": {
+                      "outputFormat": "Substring",
+                      "stringField": "query_name",
+                      "substringEnd": 64
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "description": "",
+          "id": 18,
+          "links": [],
+          "title": "Query Performance Targets",
+          "vizConfig": {
+            "group": "barchart",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "µs"
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "query_name"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "string"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "count"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "none"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "options": {
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "orientation": "horizontal",
+                "showValue": "auto",
+                "stacking": "none",
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                },
+                "xTickLabelRotation": 0,
+                "xTickLabelSpacing": 0
               }
             },
             "version": "12.4.0-pre"
@@ -1742,7 +1920,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": false,
+              "collapse": true,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -1899,7 +2077,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": true,
+              "collapse": false,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -1955,6 +2133,19 @@
                         "x": 0,
                         "y": 22
                       }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-18"
+                        },
+                        "height": 18,
+                        "width": 24,
+                        "x": 0,
+                        "y": 25
+                      }
                     }
                   ]
                 }
@@ -1986,7 +2177,7 @@
       "fiscalYearStartMonth": 0,
       "from": "now-5m",
       "hideTimepicker": false,
-      "timezone": "browser",
+      "timezone": "utc",
       "to": "now"
     },
     "title": "OTel Spam",
@@ -2018,7 +2209,7 @@
             "text": "",
             "value": ""
           },
-          "definition": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20",
+          "definition": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20",
           "description": "",
           "hide": "dontHide",
           "includeAll": false,
@@ -2033,7 +2224,7 @@
             "group": "grafana-clickhouse-datasource",
             "kind": "DataQuery",
             "spec": {
-              "__legacyStringValue": "SELECT run_id FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20"
+              "__legacyStringValue": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20"
             },
             "version": "v0"
           },

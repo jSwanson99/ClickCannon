@@ -80,8 +80,10 @@ func (s *Scheduler) runWorker(ctx context.Context, id int) {
 	backoff := baseBackoff
 
 	for {
-		if ctx.Err() != nil {
+		select {
+		case <-ctx.Done():
 			return
+		default:
 		}
 
 		if len(s.queue) == 0 {

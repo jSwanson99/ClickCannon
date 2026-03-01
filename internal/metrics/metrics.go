@@ -10,7 +10,9 @@ type Store interface {
 
 	// AddMetricPoint - The other metric functions store points every 1s while
 	// this function stores an individual row.
-	AddMetricPoint(name Name, meta string, value uint64)
+	AddMetricPoint(name Name, value uint64)
+	// AddMetricPointWithAttributes - same as AddMetricPoint but with attributes map
+	AddMetricPointWithAttributes(name Name, value uint64, attributes map[string]string)
 }
 
 type EntryMode int
@@ -27,9 +29,9 @@ const (
 )
 
 type Entry struct {
-	Mode      EntryMode
-	Timestamp time.Time
-	Name      Name
-	Meta      string
-	Value     uint64
+	Mode       EntryMode
+	Timestamp  time.Time
+	Name       Name
+	Attributes map[string]string
+	Value      uint64
 }

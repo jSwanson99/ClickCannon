@@ -10,6 +10,7 @@ import (
 	"otelspam/internal/disk"
 	"otelspam/internal/insert"
 	"otelspam/internal/metrics"
+	"otelspam/internal/user"
 	"sync"
 	"syscall"
 )
@@ -126,6 +127,20 @@ func main() {
 		}()
 	}
 
+	var userWg sync.WaitGroup
+	userCtx, cancelUser := context.WithCancel(context.Background())
+	if cfg.User.Enabled {
+		uws := user.NewScheduler(log, cfg.App.Seed, &cfg.User, metricsStore)
+		userWg.Add(1)
+		go func() {
+			defer userWg.Done()
+			uwsErr := uws.Run(userCtx)
+			if uwsErr != nil && !errors.Is(uwsErr, context.Canceled) {
+				log.Error("user worker scheduler error", "err", uwsErr)
+			}
+		}()
+	}
+
 	select {
 	case <-terminate:
 		log.Info("stop requested")
@@ -135,6 +150,8 @@ func main() {
 	diskWg.Wait()
 	cancelInsert()
 	insertWg.Wait()
+	cancelUser()
+	userWg.Wait()
 	cancelMetrics()
 	metricsWg.Wait()
 

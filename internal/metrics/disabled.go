@@ -19,4 +19,7 @@ func (d *DisabledStore) GetMetric(name Name) uint64 {
 	return 0
 }
 
-func (d *DisabledStore) AddMetricPoint(name Name, meta string, value uint64) {}
+func (d *DisabledStore) AddMetricPoint(name Name, value uint64) {}
+
+func (d *DisabledStore) AddMetricPointWithAttributes(name Name, value uint64, attr map[string]string) {
+}

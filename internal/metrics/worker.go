@@ -91,9 +91,9 @@ func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytes
 			CREATE TABLE IF NOT EXISTS %q.%q (
 				run_id String,
 				metric_name LowCardinality(String),
-				metric_meta String,
 				timestamp DateTime64(3),
-				value UInt64
+				value UInt64,
+				attributes Map(LowCardinality(String), String)
 			) Engine = MergeTree()
 			ORDER BY (run_id, metric_name, timestamp)
 		`, cfg.Database, cfg.MetricsTable)
@@ -218,7 +218,7 @@ func (w *Worker) pushMetrics(ctx context.Context) error {
 	w.mu.Lock()
 	now := time.Now()
 	for name, value := range w.metrics {
-		err = batch.Append(w.runID, string(name), "", now, value)
+		err = batch.Append(w.runID, string(name), now, value, map[string]string{})
 		if err != nil {
 			w.mu.Unlock()
 			return fmt.Errorf("failed to append metric (%s/%d) to batch: %w", name, value, err)
@@ -226,7 +226,12 @@ func (w *Worker) pushMetrics(ctx context.Context) error {
 	}
 
 	for _, m := range w.pointMetrics {
-		err = batch.Append(w.runID, string(m.Name), m.Meta, m.Timestamp, m.Value)
+		attr := m.Attributes
+		if attr == nil {
+			attr = map[string]string{}
+		}
+
+		err = batch.Append(w.runID, string(m.Name), m.Timestamp, m.Value, attr)
 		if err != nil {
 			w.mu.Unlock()
 			return fmt.Errorf("failed to append point metric (%s/%d) to batch: %w", m.Name, m.Value, err)
@@ -285,14 +290,26 @@ func (w *Worker) GetMetric(name Name) uint64 {
 	return w.metrics[name]
 }
 
-func (w *Worker) AddMetricPoint(name Name, meta string, value uint64) {
+func (w *Worker) AddMetricPoint(name Name, value uint64) {
 	select {
 	case w.metricsQueue <- Entry{
 		Mode:      EntryModePoint,
 		Timestamp: time.Now(),
-		Meta:      meta,
 		Name:      name,
 		Value:     value,
+	}:
+	default:
+	}
+}
+
+func (w *Worker) AddMetricPointWithAttributes(name Name, value uint64, attributes map[string]string) {
+	select {
+	case w.metricsQueue <- Entry{
+		Mode:       EntryModePoint,
+		Timestamp:  time.Now(),
+		Name:       name,
+		Attributes: attributes,
+		Value:      value,
 	}:
 	default:
 	}

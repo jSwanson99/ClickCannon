@@ -11,6 +11,7 @@ const (
 	InsertRowsPerSecond            Name = "insert_rows_per_second"
 	InsertBytesPerSecond           Name = "insert_bytes_per_second"
 	UserQueriesPerSecond           Name = "user_queries_per_second"
+	FailedUserQueriesPerSecond     Name = "failed_user_queries_per_second"
 
 	// State counters
 

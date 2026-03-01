@@ -1,3 +1,8 @@
+######################################################################################
+#                             OTelSpam example config                                #
+# This is less of an example and more of a documentation of all the current options. #
+######################################################################################
+
 app:
   # A helpful name for identifying multiple runs from this config
   name: insert traces 2 GiB/s
@@ -68,44 +73,133 @@ insert:
 # Settings related to the program's read/insert metrics
 metrics:
   enabled: true
-  # ClickHouse DSN URL, same as OTel exporter. Optional, if empty then metrics won't be stored.
+  # ClickHouse DSN URL, same format as OTel exporter.
   clickhouse_dsn: tcp://localhost:9000
   # Database and tables for capturing performance metrics, these are created automatically.
   database: otelspam
   run_table: runs
   metrics_table: perf
 
+# Settings related to user/query benchmarking
 user:
   enabled: true
+  # Number of concurrent simulated users
   threads: 10
-  connections_per_user: 2
-  # ClickHouse DSN URL, same as OTel exporter.
+  # How long it takes to start all users
+  ramp_duration: 30s
+  # ClickHouse DSN URL, same format as OTel exporter.
   clickhouse_dsn: tcp://localhost:9000
-  # The database to query from
-  database: otelspam
-  logs_table: otel_logs
-  traces_table: otel_traces
-  min_query_wait: 1s
-  max_query_wait: 10s
-  # Queries is an array of queries that will be chosen by the user worker
-  queries:
-    # This SQL is a Go templated string and has some variables available.
-    # "FORMAT Null" is automatically appended to the end so that no query data is returned to the client.
-    # These variables are already SQL compatible and do not need quotes or escaping. See examples.
-    # Available values:
-    #  Table: the fully qualified database and table name: "example"."database"
-    #  TimeRangeStart: the start of the time range (current time minus the configured time_range): fromUnixTimestamp64Milli(...)
-    #  TimeRangeEnd: the end of the time range (the current time of the query being executed): fromUnixTimestamp64Milli(...)
-    #
-    # To use, use Go template syntax: {{.VariableName}}
-    #
-    - name: test
-      sql: "SELECT * FROM {{.Table}} WHERE timestamp >= {{.TimeRangeStart}} AND timestamp <= {{.TimeRangeEnd}}"
-      # Time range is optional, but can be used to populate the time range variables in the above SQL.
-      # The end time will be equal to the current time when the query is executed.
-      # The start time will be the current time minus the time_range duration below.
-      # You should have read.time_shift set to "all" for this to work as expected.
-      time_range: 15m
-    - sql: "SELECT 2"
-    - sql: "SELECT 3"
+  # How many connections each thread will make
+  connections_per_thread: 2
+  # The database parameter, available in the SQL as {database:Identifier}
+  database: otel
+  # The table parameter, available in the SQL as {database:Identifier}
+  table: otel_traces
+  # An array of user behaviors. For now, we only use 1 at a time.
+  behaviors:
+      # Behavior type: must be "queries", in the future I will re-add the HAR file replay.
+    - type: queries
+      # A name for this behavior, stored in performance metrics metadata
+      name: "Example workload"
+      # Should queries be run randomly, or sequentially?
+      random: false
+      # Time to wait between queries. Sampled uniformly random from [min, max]
+      think_time:
+        min: 1s
+        max: 5s
 
+      # The time anchor controls what "now" means when computing time ranges.
+      # All time ranges operate as a "lookback", so it's [anchor - range, anchor]
+      #   now:            wall clock — use for live/realtime datasets
+      #   dataset_end:    fixed anchor at dataset_end — use for historical datasets
+      #   dataset_random: random point within [dataset_start, dataset_end] per query,
+      #                   maximizes cache thrashing on fixed datasets.
+      time_anchor: dataset_end
+      # When does your dataset start? (only required for time_anchor=dataset_random)
+      dataset_unix_start: 1758585600
+      # When does your dataset end? (only required for time_anchor=dataset_end|dataset_random)
+      dataset_unix_end: 1758631499
+
+      # Applied to all queries unless overridden. Set type=none on a query to opt out.
+      default_time_range:
+        type: uniform # one of: none, fixed, uniform, exponential, log_normal
+        # These options change depending on type, see example queries below.
+        min: 15m
+        max: 4h
+
+      queries:
+        - name: "Basic count — inherits default_time_range"
+          sql: |
+            SELECT count()
+            FROM {database:Identifier}.{table:Identifier}
+            WHERE Timestamp >= {time_start:DateTime64(3)}
+              AND Timestamp <= {time_end:DateTime64(3)}
+          # Optional: perf targets, stored as metadata on each latency metric.
+          perf:
+            # You can define all or none of these, but it is limited to p50, p90, p95, and p99.
+            p50: 500ms
+            p90: 3s
+            p95: 2s
+            p99: 5s
+
+        - name: "Fixed lookback override"
+          sql: |
+            SELECT count()
+            FROM {database:Identifier}.{table:Identifier}
+            WHERE Timestamp >= {time_start:DateTime64(9)}
+              AND Timestamp <= {time_end:DateTime64(9)}
+          time_range:
+            type: fixed
+            lookback: 1h  # always [anchor - 1h, anchor]
+
+        - name: "Exponential lookback — investigation-heavy, favors short ranges"
+          sql: |
+            SELECT count()
+            FROM {database:Identifier}.{table:Identifier}
+            WHERE Timestamp >= {time_start:DateTime64(9)}
+              AND Timestamp <= {time_end:DateTime64(9)}
+          time_range:
+            type: exponential
+            mean: 30m
+            min:  5m   # optional clamp
+            max:  24h  # optional clamp
+
+        - name: "Log-normal lookback — mixed workload, short bias with long tail"
+          sql: |
+            SELECT count()
+            FROM {database:Identifier}.{table:Identifier}
+            WHERE Timestamp >= {time_start:DateTime64(9)}
+              AND Timestamp <= {time_end:DateTime64(9)}
+          time_range:
+            type: log_normal
+            mean: 2h
+            min:  5m
+            max:  24h
+
+        - name: "Preflight query — binds a value before executing the main query"
+          # The preflight_query latency does not count against the main query.
+          # It fetches a single string value and binds it as a named parameter.
+          # The same time range context is available to the preflight query.
+          preflight_query:
+            sql: |
+              SELECT TraceId
+              FROM {database:Identifier}.{table:Identifier}
+              WHERE Timestamp >= {time_start:DateTime64(9)}
+                AND Timestamp <= {time_end:DateTime64(9)}
+              ORDER BY Timestamp ASC
+              LIMIT 1
+            bind: TraceId  # available as {TraceId:String} in the main query
+          sql: |
+            SELECT *
+            FROM {database:Identifier}.{table:Identifier}
+            WHERE TraceId = {TraceId:String}
+          time_range:
+            type: uniform
+            min: 15m
+            max: 2h
+
+        - name: "No time range — explicit opt-out of default_time_range"
+          sql: |
+            SELECT count() FROM {database:Identifier}.{table:Identifier}
+          time_range:
+            type: none

@@ -93,7 +93,7 @@ user:
   connections_per_thread: 2
   # The database parameter, available in the SQL as {database:Identifier}
   database: otel
-  # The table parameter, available in the SQL as {database:Identifier}
+  # The table parameter, available in the SQL as {table:Identifier}
   table: otel_traces
   # An array of user behaviors. For now, we only use 1 at a time.
   behaviors:

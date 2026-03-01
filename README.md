@@ -5,7 +5,7 @@
 
 # About
 
-A program for replaying OTel data and simulating user queries into ClickHouse.
+A program for replaying OTel data and simulating user queries for ClickHouse.
 
 # Usage
 

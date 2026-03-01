@@ -38,7 +38,6 @@ func (c *TimeRangeConfig) sampleLookback(rng *rand.Rand) time.Duration {
 		return clampDuration(sample, c.Min, c.Max)
 
 	case TimeRangeLogNormal:
-		// TODO: make this configurable?
 		const sigma = 0.5
 		mu := math.Log(float64(c.Mean)) - (sigma*sigma)/2
 		sample := time.Duration(math.Exp(mu + sigma*rng.NormFloat64()))

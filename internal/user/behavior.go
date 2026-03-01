@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
@@ -90,9 +89,7 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 
 	if q.PreflightQuery != nil {
 		binds, err := b.queryRunner.ExecPreflight(ctx, q.PreflightQuery.Binds, q.PreflightQuery.SQL, q.PreflightQuery.Settings, params.Params())
-		if errors.Is(err, context.Canceled) {
-			return nil, err
-		} else if err != nil {
+		if err != nil {
 			return nil, fmt.Errorf("preflight query for query (index=%d, name=%q) failed: %w", queryIndex, q.Name, err)
 		}
 

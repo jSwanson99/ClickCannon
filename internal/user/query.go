@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -91,9 +90,7 @@ func (r *ClickHouseQueryRunner) Exec(ctx context.Context, q ExecutableQuery) (Qu
 
 	queryStart := time.Now()
 	err := r.client.Exec(ctx, q.SQL, q.Params...)
-	if errors.Is(err, context.Canceled) {
-		return QueryResult{}, err
-	} else if err != nil {
+	if err != nil {
 		return QueryResult{}, fmt.Errorf("failed to run query: %w", err)
 	}
 
@@ -106,9 +103,7 @@ func (r *ClickHouseQueryRunner) Exec(ctx context.Context, q ExecutableQuery) (Qu
 func (r *ClickHouseQueryRunner) ExecPreflight(ctx context.Context, bindNames []string, sql string, settings map[string]string, params []any) (map[string]string, error) {
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settingsToClickHouseSettings(settings)))
 	row := r.client.QueryRow(ctx, sql, params...)
-	if errors.Is(row.Err(), context.Canceled) {
-		return nil, row.Err()
-	} else if row.Err() != nil {
+	if row.Err() != nil {
 		return nil, fmt.Errorf("failed to run fetch value query: %w", row.Err())
 	}
 

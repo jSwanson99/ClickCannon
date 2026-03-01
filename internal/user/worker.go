@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -43,7 +44,12 @@ func (w *Worker) Run(ctx context.Context) error {
 		}
 
 		q, err := w.behavior.NextQuery(ctx)
-		if err != nil {
+		if err != nil && errors.Is(err, context.Canceled) {
+			continue
+		} else if err != nil && errors.Is(err, sql.ErrNoRows) {
+			w.log.Debug("preflight query had no rows, skipping", "err", err)
+			continue
+		} else if err != nil {
 			return fmt.Errorf("worker %d behavior error: %w", w.id, err)
 		}
 		if q == nil {
@@ -51,7 +57,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		}
 
 		result, err := w.queryRunner.Exec(ctx, *q)
-		if errors.Is(err, context.Canceled) {
+		if err != nil && errors.Is(err, context.Canceled) {
 			continue
 		} else if err != nil {
 			w.log.Error("query failed", "name", q.Name, "err", err, "sql", q.SQL, "params", q.Params)

@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
@@ -91,7 +92,9 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 
 	if q.PreflightQuery != nil {
 		val, err := b.queryRunner.FetchValue(ctx, q.PreflightQuery.SQL, params.Params())
-		if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, err
+		} else if err != nil {
 			return nil, fmt.Errorf("preflight %q: %w", q.PreflightQuery.Bind, err)
 		}
 

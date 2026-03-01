@@ -37,6 +37,8 @@ type QueriesBehavior struct {
 	index        int
 	datasetStart time.Time
 	datasetEnd   time.Time
+
+	sampledTimeRange *ResolvedTimeRange
 }
 
 func NewQueriesBehavior(log *slog.Logger, userCfg *Config, name string, cfg *QueriesBehaviorConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) *QueriesBehavior {
@@ -74,20 +76,16 @@ func (b *QueriesBehavior) anchor() time.Time {
 func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, error) {
 	queryIndex, q := b.nextQueryConfig()
 
-	anchor := b.anchor()
-	tr := EffectiveTimeRange(q, b.cfg.DefaultTimeRange)
-
 	params := QueryParams{
 		Database:  b.userCfg.Database,
 		Table:     b.userCfg.Table,
 		Preflight: make(map[string]string),
 	}
-	if tr != nil {
-		resolved, ok := tr.Resolve(anchor, b.rng)
-		if ok {
-			params.TimeStart = resolved.Start
-			params.TimeEnd = resolved.End
-		}
+
+	resolved := b.resolveTimeRange(q)
+	if resolved != nil {
+		params.TimeStart = resolved.Start
+		params.TimeEnd = resolved.End
 	}
 
 	if q.PreflightQuery != nil {
@@ -97,7 +95,6 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 		} else if err != nil {
 			return nil, fmt.Errorf("preflight %q: %w", q.PreflightQuery.Bind, err)
 		}
-
 		params.Preflight[q.PreflightQuery.Bind] = val
 	}
 
@@ -121,15 +118,53 @@ func (b *QueriesBehavior) ThinkTime() time.Duration {
 	return tt.Min + time.Duration(b.rng.Int64N(int64(spread)))
 }
 
-func (b *QueriesBehavior) nextQueryConfig() (int, *QueryConfig) {
-	var queryIndex int
-	queries := b.cfg.Queries
-	if b.cfg.Random {
-		queryIndex = b.rng.IntN(len(queries))
-		return queryIndex, &queries[queryIndex]
+func (b *QueriesBehavior) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
+	// Query-level override
+	if q.TimeRange != nil {
+		if q.TimeRange.Type == TimeRangeNone {
+			return nil
+		}
+
+		resolved, ok := q.TimeRange.Resolve(b.anchor(), b.rng)
+		if !ok {
+			return nil
+		}
+
+		return &resolved
 	}
 
-	queryIndex = b.index % len(queries)
+	// Default time range
+	if b.cfg.DefaultTimeRange == nil || b.cfg.DefaultTimeRange.Type == TimeRangeNone {
+		return nil
+	}
+
+	if b.cfg.TimeRangeCadence == TimeRangeCadencePerQuery || b.sampledTimeRange == nil {
+		resolved, ok := b.cfg.DefaultTimeRange.Resolve(b.anchor(), b.rng)
+		if !ok {
+			return nil
+		}
+		
+		b.sampledTimeRange = &resolved
+	}
+
+	return b.sampledTimeRange
+}
+
+func (b *QueriesBehavior) nextQueryConfig() (int, *QueryConfig) {
+	queries := b.cfg.Queries
+
+	if b.cfg.Random {
+		i := b.rng.IntN(len(queries))
+		return i, &queries[i]
+	}
+
+	queryIndex := b.index % len(queries)
+	loopWrapped := queryIndex == 0
+
+	if loopWrapped && b.cfg.TimeRangeCadence == TimeRangeCadencePerLoop {
+		b.sampledTimeRange = nil
+	}
+
 	q := &queries[queryIndex]
 	b.index++
 

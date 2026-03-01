@@ -123,9 +123,17 @@ user:
       # Applied to all queries unless overridden. Set type=none on a query to opt out.
       default_time_range:
         type: uniform # one of: none, fixed, uniform, exponential, log_normal
+        # round is optional, rounds the sampled start/end to the nearest interval.
+        # Make sure this fits your range. This is available for all time_range types.
+        round: 1m
         # These options change depending on type, see example queries below.
         min: 15m
         max: 4h
+
+      # Controls how often the default_time_range is resampled.
+      #   per_query: new time range on every query execution
+      #   per_loop:  sample once at the start of each pass through the query list (when random=false)
+      time_range_cadence: per_query
 
       queries:
         - name: "Basic count — inherits default_time_range"
@@ -163,6 +171,7 @@ user:
               AND Timestamp <= {time_end:DateTime64(3)}
           time_range:
             type: exponential
+            round: 5m # optional rounding value, same as default_time_range
             mean: 30m
             min:  5m   # optional clamp
             max:  24h  # optional clamp

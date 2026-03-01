@@ -82,6 +82,7 @@ type QueriesBehaviorConfig struct {
 	ThinkTime        ThinkTimeConfig  `yaml:"think_time"`
 	TimeAnchor       TimeAnchor       `yaml:"time_anchor"`
 	DefaultTimeRange *TimeRangeConfig `yaml:"default_time_range"`
+	TimeRangeCadence TimeRangeCadence `yaml:"time_range_cadence"`
 	Queries          []QueryConfig    `yaml:"queries"`
 }
 
@@ -98,6 +99,16 @@ func (c QueriesBehaviorConfig) Validate(userCfg Config) error {
 		if err := c.DefaultTimeRange.Validate(); err != nil {
 			return fmt.Errorf("default_time_range: %w", err)
 		}
+	}
+
+	if c.TimeRangeCadence == "" {
+		c.TimeRangeCadence = TimeRangeCadencePerQuery
+	}
+	if c.TimeRangeCadence != TimeRangeCadencePerQuery && c.TimeRangeCadence != TimeRangeCadencePerLoop {
+		return fmt.Errorf("time_range_cadence must be one of: %s, %s", TimeRangeCadencePerQuery, TimeRangeCadencePerLoop)
+	}
+	if c.TimeRangeCadence == TimeRangeCadencePerLoop && c.Random {
+		return fmt.Errorf("time_range_cadence cannot be %q when random is %t", c.TimeRangeCadence, c.Random)
 	}
 
 	if len(c.Queries) == 0 {
@@ -231,7 +242,8 @@ const (
 )
 
 type TimeRangeConfig struct {
-	Type TimeRangeType `yaml:"type"`
+	Type  TimeRangeType `yaml:"type"`
+	Round time.Duration `yaml:"round"`
 
 	// Fixed
 	Lookback time.Duration `yaml:"value"`
@@ -245,6 +257,10 @@ type TimeRangeConfig struct {
 }
 
 func (c TimeRangeConfig) Validate() error {
+	if c.Round < 0 {
+		return errors.New("time_range round duration must be >= 0")
+	}
+
 	switch c.Type {
 	case TimeRangeNone:
 		return nil
@@ -274,3 +290,10 @@ func (c TimeRangeConfig) Validate() error {
 
 	return nil
 }
+
+type TimeRangeCadence string
+
+const (
+	TimeRangeCadencePerQuery TimeRangeCadence = "per_query"
+	TimeRangeCadencePerLoop  TimeRangeCadence = "per_loop"
+)

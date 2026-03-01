@@ -17,9 +17,17 @@ func (c *TimeRangeConfig) Resolve(anchor time.Time, rng *rand.Rand) (ResolvedTim
 	}
 
 	lookback := c.sampleLookback(rng)
+	start := anchor.Add(-lookback)
+	end := anchor
+
+	if c.Round > 0 {
+		start = start.Round(c.Round)
+		end = end.Round(c.Round)
+	}
+
 	return ResolvedTimeRange{
-		Start: anchor.Add(-lookback),
-		End:   anchor,
+		Start: start,
+		End:   end,
 	}, true
 }
 
@@ -58,16 +66,4 @@ func clampDuration(d, min, max time.Duration) time.Duration {
 	}
 
 	return d
-}
-
-func EffectiveTimeRange(query *QueryConfig, defaultRange *TimeRangeConfig) *TimeRangeConfig {
-	if query.TimeRange != nil {
-		if query.TimeRange.Type == TimeRangeNone {
-			return nil
-		}
-
-		return query.TimeRange
-	}
-
-	return defaultRange
 }

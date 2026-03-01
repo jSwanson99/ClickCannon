@@ -15,9 +15,14 @@ import (
 )
 
 func main() {
-	runID, cfg, log, closeLogFile := app.Setup()
+	runID, cfgFileName, cfg, log, closeLogFile := app.Setup()
 	if closeLogFile != nil {
 		defer closeLogFile()
+	}
+
+	runName := cfgFileName
+	if cfg.App.Name != "" {
+		runName = cfg.App.Name
 	}
 
 	targetBytesPerSecond := cfg.Disk.MiBytesPerSecondLimit * 1024 * 1024
@@ -70,7 +75,7 @@ func main() {
 
 	var metricsStore metrics.Store
 	if cfg.Metrics.Enabled {
-		m, metricsErr := metrics.NewWorker(log, runID, cfg.App.DataType, targetBytesPerSecond, &cfg.Metrics, blockPool, insertQueue)
+		m, metricsErr := metrics.NewWorker(log, runID, runName, cfg.App.DataType, targetBytesPerSecond, make(map[string]string), &cfg.Metrics, blockPool, insertQueue)
 		if metricsErr != nil {
 			log.Error("failed to create metrics worker", "err", metricsErr)
 			return

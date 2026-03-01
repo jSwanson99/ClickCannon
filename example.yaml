@@ -1,4 +1,6 @@
 app:
+  # A helpful name for identifying multiple runs from this config
+  name: insert traces 2 GiB/s
   log_level: debug
   log_to_console: true
   log_to_file: false
@@ -9,7 +11,7 @@ app:
 
 disk:
   enabled: true
-  threads: 2
+  threads: 4
   # Path to logs/traces directories. Files must be named .native or .native.zst
   logs_path: log_data
   traces_path: trace_data

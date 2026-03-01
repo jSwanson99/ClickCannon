@@ -31,7 +31,7 @@ type Worker struct {
 	pointMetrics []Entry
 }
 
-func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond uint64, cfg *Config, blockPool block.Pool, blockQueue chan block.SharedColumns) (*Worker, error) {
+func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytesPerSecond uint64, runAttr map[string]string, cfg *Config, blockPool block.Pool, blockQueue chan block.SharedColumns) (*Worker, error) {
 	w := Worker{
 		log:                  log.With("component", "metrics_worker", "data_type", dataType),
 		runID:                runID,
@@ -66,9 +66,11 @@ func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond ui
 		runDDL := fmt.Sprintf(`
 			CREATE TABLE IF NOT EXISTS %q.%q (
 				run_id String,
+				name String,
 				timestamp DateTime64(3),
 			    data_type LowCardinality(String),
-			    target_bytes_per_second UInt64
+			    target_bytes_per_second UInt64,
+			    attributes Map(LowCardinality(String), String)
 			) Engine = MergeTree()
 			ORDER BY (run_id, timestamp)
 		`, cfg.Database, cfg.RunTable)
@@ -78,11 +80,12 @@ func NewWorker(log *slog.Logger, runID, dataType string, targetBytesPerSecond ui
 			return nil, fmt.Errorf("failed to create run table: %w", err)
 		}
 
-		insertRunSQL := fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?)`, cfg.Database, cfg.RunTable)
-		err = w.conn.Exec(context.Background(), insertRunSQL, runID, time.Now(), dataType, targetBytesPerSecond)
+		insertRunSQL := fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?, ?, ?)`, cfg.Database, cfg.RunTable)
+		err = w.conn.Exec(context.Background(), insertRunSQL, runID, configName, time.Now(), dataType, targetBytesPerSecond, runAttr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert run: %w", err)
 		}
+		w.log.Info("inserted run info")
 
 		metricsDDL := fmt.Sprintf(`
 			CREATE TABLE IF NOT EXISTS %q.%q (

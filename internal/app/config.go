@@ -8,6 +8,7 @@ import (
 	"otelspam/internal/disk"
 	"otelspam/internal/insert"
 	"otelspam/internal/metrics"
+	"path/filepath"
 
 	"github.com/goccy/go-yaml"
 )
@@ -17,6 +18,7 @@ const ConfigDataTypeTraces = "traces"
 
 type Config struct {
 	App struct {
+		Name         string `yaml:"name"`
 		LogToFile    bool   `yaml:"log_to_file"`
 		LogToConsole bool   `yaml:"log_to_console"`
 		LogLevel     string `yaml:"log_level"`
@@ -75,30 +77,32 @@ func (c Config) Validate() error {
 	return nil
 }
 
-func LoadConfig() (*Config, error) {
+func LoadConfig() (*Config, string, error) {
 	var configPath string
 	flag.StringVar(&configPath, "config", "", "Path to YAML configuration file")
 	flag.Parse()
 
 	if configPath == "" {
-		return nil, errors.New("--config flag is required")
+		return nil, "", errors.New("--config flag is required")
 	}
+
+	configFileName := filepath.Base(configPath)
 
 	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	var config Config
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	err = config.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+		return nil, "", fmt.Errorf("invalid config: %w", err)
 	}
 
-	return &config, nil
+	return &config, configFileName, nil
 }

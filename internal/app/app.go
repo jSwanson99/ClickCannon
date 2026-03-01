@@ -14,12 +14,12 @@ func setupErr(err error) {
 	os.Exit(1)
 }
 
-func Setup() (string, *Config, *slog.Logger, func()) {
+func Setup() (string, string, *Config, *slog.Logger, func()) {
 	time.Local = time.UTC
 
 	runID := NewRunID()
 
-	cfg, err := LoadConfig()
+	cfg, cfgFileName, err := LoadConfig()
 	if err != nil {
 		setupErr(fmt.Errorf("failed to load config: %w", err))
 	}
@@ -53,7 +53,7 @@ func Setup() (string, *Config, *slog.Logger, func()) {
 
 	log.Info("starting otelspam", "seed", cfg.App.Seed, "data_type", cfg.App.DataType)
 
-	return runID, cfg, log, closeFunc
+	return runID, cfgFileName, cfg, log, closeFunc
 }
 
 func NewRunID() string {

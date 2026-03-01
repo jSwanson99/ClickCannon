@@ -28,6 +28,8 @@ func main() {
 	targetBytesPerSecond := cfg.Disk.MiBytesPerSecondLimit * 1024 * 1024
 
 	log.Info("config",
+		"config_file", cfgFileName,
+		"run_name", runName,
 		"disk_enabled", cfg.Disk.Enabled,
 		"disk_threads", cfg.Disk.Threads,
 		"mb_per_second_limit", cfg.Disk.MiBytesPerSecondLimit,

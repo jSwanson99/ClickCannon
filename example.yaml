@@ -114,7 +114,7 @@ user:
       #   dataset_end:    fixed anchor at dataset_end — use for historical datasets
       #   dataset_random: random point within [dataset_start, dataset_end] per query,
       #                   maximizes cache thrashing on fixed datasets.
-      time_anchor: dataset_end
+      time_anchor: now
       # When does your dataset start? (only required for time_anchor=dataset_random)
       dataset_unix_start: 1758585600
       # When does your dataset end? (only required for time_anchor=dataset_end|dataset_random)
@@ -180,6 +180,7 @@ user:
           # The preflight_query latency does not count against the main query.
           # It fetches a single string value and binds it as a named parameter.
           # The same time range context is available to the preflight query.
+          # Make sure this only returns 1 row that is a String.
           preflight_query:
             sql: |
               SELECT TraceId

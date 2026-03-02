@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 73,
+    "generation": 74,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -1986,7 +1986,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": true,
+              "collapse": false,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {

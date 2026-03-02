@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 67,
+    "generation": 68,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -578,7 +578,7 @@
           "description": "",
           "id": 13,
           "links": [],
-          "title": "Latency By Query (p50 and p99)",
+          "title": "Latency By Query (p50, target p50, p90, target p90)",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -1957,9 +1957,9 @@
                           "kind": "ElementReference",
                           "name": "panel-9"
                         },
-                        "height": 5,
+                        "height": 4,
                         "width": 2,
-                        "x": 7,
+                        "x": 0,
                         "y": 0
                       }
                     },
@@ -1970,9 +1970,9 @@
                           "kind": "ElementReference",
                           "name": "panel-3"
                         },
-                        "height": 5,
+                        "height": 4,
                         "width": 9,
-                        "x": 9,
+                        "x": 2,
                         "y": 0
                       }
                     }
@@ -1985,7 +1985,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": false,
+              "collapse": true,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {

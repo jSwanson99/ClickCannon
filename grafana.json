@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 69,
+    "generation": 71,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -575,10 +575,10 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Shows the latency per query, with target percentiles also present in the chart. Starts with the target p90 and actual p90, then target p50 and actual p50.",
           "id": 13,
           "links": [],
-          "title": "Latency By Query (p50, target p50, p90, target p90)",
+          "title": "Latency By Query (target/actual p90, target/actual p50)",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -783,7 +783,7 @@
               ]
             }
           },
-          "description": "",
+          "description": "Counts how many samples each query has (how many times the query ran)",
           "id": 14,
           "links": [],
           "title": "Samples By Query",
@@ -1018,7 +1018,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  quantile(0.5)(toUInt64(attributes['time_range_seconds'])) as time_range_seconds\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY time_range_seconds DESC\nLIMIT 10"
+                        "rawSql": "SELECT\n  toString(toUInt64(attributes['time_range_seconds'])/60) as minutes,\n  count() as query_count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY minutes\nORDER BY toUInt64(minutes) ASC"
                       },
                       "version": "v0"
                     },
@@ -1042,10 +1042,10 @@
               ]
             }
           },
-          "description": "",
+          "description": "Counts the number of queries that ran within a given time range. Grouped by minute.",
           "id": 18,
           "links": [],
-          "title": "Avg Query Time Range",
+          "title": "Query Counts by Time Range Distribution",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -1085,7 +1085,7 @@
                       }
                     ]
                   },
-                  "unit": "s"
+                  "unit": "none"
                 },
                 "overrides": [
                   {
@@ -1113,7 +1113,7 @@
                   "placement": "bottom",
                   "showLegend": true
                 },
-                "orientation": "horizontal",
+                "orientation": "auto",
                 "showValue": "auto",
                 "stacking": "none",
                 "tooltip": {
@@ -1121,6 +1121,7 @@
                   "mode": "single",
                   "sort": "none"
                 },
+                "xField": "time_range_bucket",
                 "xTickLabelRotation": 0,
                 "xTickLabelSpacing": 0
               }

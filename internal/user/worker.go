@@ -67,7 +67,7 @@ func (w *Worker) Run(ctx context.Context) error {
 			attr["query_name"] = result.Query.Name
 			attr["behavior_name"] = w.behavior.Name()
 			if result.Query.TimeRange > 0 {
-				attr["time_range_micros"] = strconv.Itoa(int(result.Query.TimeRange.Microseconds()))
+				attr["time_range_seconds"] = strconv.Itoa(int(result.Query.TimeRange.Seconds()))
 			}
 			if perf := result.Query.Perf; perf != nil {
 				if perf.P50 > 0 {

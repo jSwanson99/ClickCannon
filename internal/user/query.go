@@ -20,7 +20,9 @@ type ExecutableQuery struct {
 	SQL        string
 	Settings   map[string]string
 	Params     []any
-	Perf       *PerfConfig
+	// TimeRange is a hack for metrics, the params contain the actual time range used in the SQL
+	TimeRange time.Duration
+	Perf      *PerfConfig
 }
 
 type QueryResult struct {

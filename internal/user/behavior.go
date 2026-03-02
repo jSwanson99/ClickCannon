@@ -82,9 +82,11 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 	}
 
 	resolved := b.resolveTimeRange(q)
+	var resolvedDuration time.Duration
 	if resolved != nil {
 		params.TimeStart = resolved.Start
 		params.TimeEnd = resolved.End
+		resolvedDuration = resolved.End.Sub(resolved.Start)
 	}
 
 	if q.PreflightQuery != nil {
@@ -102,6 +104,7 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 		SQL:        TryAppendFormatNull(q.SQL),
 		Settings:   q.Settings,
 		Params:     params.Params(),
+		TimeRange:  resolvedDuration,
 		Perf:       q.Perf,
 	}, nil
 }

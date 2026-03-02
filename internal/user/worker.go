@@ -63,14 +63,25 @@ func (w *Worker) Run(ctx context.Context) error {
 			w.log.Error("query failed", "name", q.Name, "err", err, "sql", q.SQL, "params", q.Params)
 			w.metrics.IncrementMetric(metrics.FailedUserQueriesPerSecond, 1)
 		} else {
-			attr := make(map[string]string, 5)
+			attr := make(map[string]string, 7)
 			attr["query_name"] = result.Query.Name
 			attr["behavior_name"] = w.behavior.Name()
+			if result.Query.TimeRange > 0 {
+				attr["time_range_micros"] = strconv.Itoa(int(result.Query.TimeRange.Microseconds()))
+			}
 			if perf := result.Query.Perf; perf != nil {
-				attr["perf.p50"] = strconv.Itoa(int(perf.P50.Microseconds()))
-				attr["perf.p90"] = strconv.Itoa(int(perf.P90.Microseconds()))
-				attr["perf.p95"] = strconv.Itoa(int(perf.P95.Microseconds()))
-				attr["perf.p99"] = strconv.Itoa(int(perf.P99.Microseconds()))
+				if perf.P50 > 0 {
+					attr["perf.p50"] = strconv.Itoa(int(perf.P50.Microseconds()))
+				}
+				if perf.P90 > 0 {
+					attr["perf.p90"] = strconv.Itoa(int(perf.P90.Microseconds()))
+				}
+				if perf.P95 > 0 {
+					attr["perf.p95"] = strconv.Itoa(int(perf.P95.Microseconds()))
+				}
+				if perf.P99 > 0 {
+					attr["perf.p99"] = strconv.Itoa(int(perf.P99.Microseconds()))
+				}
 			}
 
 			w.metrics.AddMetricPointWithAttributes(metrics.QueryLatencyMicros, uint64(result.Duration.Microseconds()), attr)

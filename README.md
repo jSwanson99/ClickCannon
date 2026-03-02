@@ -1,5 +1,5 @@
 <p align="center">
-	<img src=".static/logo.png" width="400px" align="center">
+	<img src=".static/logo.png" alt="otelspam logo" width="400px" align="center">
 	<h1 align="center">OTelSpam</h1>
 </p>
 
@@ -24,3 +24,16 @@ Run the program:
 ```sh
 go run otelspam --config test.yaml
 ```
+
+# Grafana
+
+A Grafana dashboard is included. It reads metrics from the configured `metrics` ClickHouse server.
+
+### Disk & Insert panels
+
+![Example of disk and insert dashboard](.static/grafana_disk_and_insert_dashboard.png)
+
+
+### User Query panels
+
+![Example of user dashboard](.static/grafana_user_dashboard.png)

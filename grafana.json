@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 66,
+    "generation": 67,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -563,7 +563,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  attributes['query_name'] as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  -- count(*) as count,\n  quantile(0.5)(value) as p50,\n  quantile(0.90)(value) as p90,\n  any(toUInt64OrZero(attributes['perf.p50'])) as target_p50,\n  any(toUInt64OrZero(attributes['perf.p90'])) as target_p90\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC\nLIMIT 25"
+                        "rawSql": "SELECT\n  -- toString(cityHash64(metric_meta)) as query_name,\n  attributes['query_name'] as query_name,\n  -- toStartOfSecond(timestamp) as timestamp,\n  -- count(*) as count,\n  quantile(0.5)(value) as p50,\n  any(toUInt64OrZero(attributes['perf.p50'])) as target_p50,\n  quantile(0.90)(value) as p90,\n  any(toUInt64OrZero(attributes['perf.p90'])) as target_p90\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC\nLIMIT 25"
                       },
                       "version": "v0"
                     },
@@ -669,7 +669,7 @@
                           "mode": "absolute",
                           "steps": [
                             {
-                              "color": "blue",
+                              "color": "text",
                               "value": 0
                             }
                           ]
@@ -689,7 +689,7 @@
                           "mode": "absolute",
                           "steps": [
                             {
-                              "color": "purple",
+                              "color": "text",
                               "value": 0
                             }
                           ]

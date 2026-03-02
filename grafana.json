@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 65,
+    "generation": 66,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -986,6 +986,149 @@
           }
         }
       },
+      "panel-18": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 1,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "table",
+                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  quantile(0.5)(toUInt64(attributes['time_range_seconds'])) as time_range_seconds\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY time_range_seconds DESC\nLIMIT 10"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": [
+                {
+                  "kind": "formatString",
+                  "spec": {
+                    "id": "formatString",
+                    "options": {
+                      "outputFormat": "Substring",
+                      "stringField": "query_name",
+                      "substringEnd": 64
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "description": "",
+          "id": 18,
+          "links": [],
+          "title": "Avg Query Time Range",
+          "vizConfig": {
+            "group": "barchart",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "s"
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "count"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "none"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "options": {
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "orientation": "horizontal",
+                "showValue": "auto",
+                "stacking": "none",
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                },
+                "xTickLabelRotation": 0,
+                "xTickLabelSpacing": 0
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
       "panel-2": {
         "kind": "Panel",
         "spec": {
@@ -1802,6 +1945,7 @@
             "kind": "RowsLayoutRow",
             "spec": {
               "collapse": false,
+              "hideHeader": true,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -1815,7 +1959,7 @@
                         },
                         "height": 5,
                         "width": 2,
-                        "x": 0,
+                        "x": 7,
                         "y": 0
                       }
                     },
@@ -1824,11 +1968,38 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
+                          "name": "panel-3"
+                        },
+                        "height": 5,
+                        "width": 9,
+                        "x": 9,
+                        "y": 0
+                      }
+                    }
+                  ]
+                }
+              },
+              "title": ""
+            }
+          },
+          {
+            "kind": "RowsLayoutRow",
+            "spec": {
+              "collapse": false,
+              "layout": {
+                "kind": "GridLayout",
+                "spec": {
+                  "items": [
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
                           "name": "panel-6"
                         },
                         "height": 5,
-                        "width": 3,
-                        "x": 2,
+                        "width": 4,
+                        "x": 0,
                         "y": 0
                       }
                     },
@@ -1840,8 +2011,8 @@
                           "name": "panel-8"
                         },
                         "height": 5,
-                        "width": 3,
-                        "x": 5,
+                        "width": 4,
+                        "x": 4,
                         "y": 0
                       }
                     },
@@ -1853,7 +2024,7 @@
                           "name": "panel-10"
                         },
                         "height": 5,
-                        "width": 3,
+                        "width": 4,
                         "x": 8,
                         "y": 0
                       }
@@ -1866,21 +2037,8 @@
                           "name": "panel-7"
                         },
                         "height": 5,
-                        "width": 3,
-                        "x": 11,
-                        "y": 0
-                      }
-                    },
-                    {
-                      "kind": "GridLayoutItem",
-                      "spec": {
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-3"
-                        },
-                        "height": 5,
-                        "width": 6,
-                        "x": 14,
+                        "width": 4,
+                        "x": 12,
                         "y": 0
                       }
                     },
@@ -1892,8 +2050,8 @@
                           "name": "panel-15"
                         },
                         "height": 5,
-                        "width": 4,
-                        "x": 20,
+                        "width": 8,
+                        "x": 16,
                         "y": 0
                       }
                     },
@@ -2013,6 +2171,19 @@
                         "width": 24,
                         "x": 0,
                         "y": 22
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-18"
+                        },
+                        "height": 9,
+                        "width": 24,
+                        "x": 0,
+                        "y": 25
                       }
                     }
                   ]

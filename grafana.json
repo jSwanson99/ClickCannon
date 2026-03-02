@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 71,
+    "generation": 72,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -2155,7 +2155,7 @@
                           "kind": "ElementReference",
                           "name": "panel-13"
                         },
-                        "height": 17,
+                        "height": 25,
                         "width": 24,
                         "x": 0,
                         "y": 5
@@ -2171,7 +2171,7 @@
                         "height": 3,
                         "width": 24,
                         "x": 0,
-                        "y": 22
+                        "y": 30
                       }
                     },
                     {
@@ -2184,7 +2184,7 @@
                         "height": 9,
                         "width": 24,
                         "x": 0,
-                        "y": 25
+                        "y": 33
                       }
                     }
                   ]

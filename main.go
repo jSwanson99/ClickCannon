@@ -85,14 +85,12 @@ func main() {
 		}
 		metricsStore = m
 
-		metricsWg.Add(1)
-		go func() {
-			defer metricsWg.Done()
+		metricsWg.Go(func() {
 			mErr := m.Run(metricsCtx)
 			if mErr != nil && !errors.Is(mErr, context.Canceled) {
 				log.Error("metrics worker error", "err", mErr)
 			}
-		}()
+		})
 	} else {
 		metricsStore = metrics.NewDisabledStore()
 	}
@@ -101,49 +99,58 @@ func main() {
 	diskCtx, cancelDisk := context.WithCancel(context.Background())
 	if cfg.Disk.Enabled {
 		dws := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
-		diskWg.Add(1)
-		go func() {
-			defer diskWg.Done()
+		diskWg.Go(func() {
 			dwsErr := dws.Run(diskCtx)
 			if dwsErr != nil && !errors.Is(dwsErr, context.Canceled) {
 				log.Error("disk worker scheduler error", "err", dwsErr)
 			}
-
 			close(insertQueue)
-		}()
+		})
+	} else {
+		close(insertQueue)
 	}
 
 	var insertWg sync.WaitGroup
 	insertCtx, cancelInsert := context.WithCancel(context.Background())
 	if cfg.Insert.Enabled {
-		iws := insert.NewScheduler(log, &cfg.Insert, cfg.GetInsertTable(), blockCreateFunc, blockPool, insertQueue, metricsStore)
-		insertWg.Add(1)
-		go func() {
-			defer insertWg.Done()
-			iwsErr := iws.Run(insertCtx)
-			if iwsErr != nil && !errors.Is(iwsErr, context.Canceled) {
-				log.Error("insert worker scheduler error", "err", iwsErr)
-			}
-		}()
+		if !cfg.Disk.Enabled {
+			log.Warn("insert is enabled but disk is disabled, insert workers will not start")
+		} else {
+			iws := insert.NewScheduler(log, &cfg.Insert, cfg.GetInsertTable(), blockCreateFunc, blockPool, insertQueue, metricsStore)
+			insertWg.Go(func() {
+				iwsErr := iws.Run(insertCtx)
+				if iwsErr != nil && !errors.Is(iwsErr, context.Canceled) {
+					log.Error("insert worker scheduler error", "err", iwsErr)
+				}
+			})
+		}
 	}
 
 	var userWg sync.WaitGroup
 	userCtx, cancelUser := context.WithCancel(context.Background())
 	if cfg.User.Enabled {
 		uws := user.NewScheduler(log, cfg.App.Seed, &cfg.User, metricsStore)
-		userWg.Add(1)
-		go func() {
-			defer userWg.Done()
+		userWg.Go(func() {
 			uwsErr := uws.Run(userCtx)
 			if uwsErr != nil && !errors.Is(uwsErr, context.Canceled) {
 				log.Error("user worker scheduler error", "err", uwsErr)
 			}
-		}()
+		})
 	}
+
+	done := make(chan struct{})
+	go func() {
+		diskWg.Wait()
+		insertWg.Wait()
+		userWg.Wait()
+		close(done)
+	}()
 
 	select {
 	case <-terminate:
 		log.Info("stop requested")
+	case <-done:
+		log.Info("all workers completed")
 	}
 
 	cancelDisk()

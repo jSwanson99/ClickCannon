@@ -35,7 +35,21 @@ func NewScheduler(log *slog.Logger, seed string, cfg *Config, m metrics.Store) *
 func (s *Scheduler) Run(ctx context.Context) error {
 	s.log.Info("started")
 
+	if s.cfg.Duration > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, s.cfg.Duration)
+		defer cancel()
+	}
+
 	rampStep := rampInterval(s.cfg.RampDuration, s.cfg.Threads)
+
+	logStopped := func() {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			s.log.Info("user duration elapsed")
+		}
+
+		s.log.Info("stopped")
+	}
 
 	var wg sync.WaitGroup
 	for i := range s.cfg.Threads {
@@ -43,7 +57,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				wg.Wait()
-				s.log.Info("stopped")
+				logStopped()
 				return nil
 			case <-time.After(rampStep):
 			}
@@ -59,7 +73,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	}
 
 	wg.Wait()
-	s.log.Info("stopped")
+	logStopped()
 
 	return nil
 }
@@ -97,7 +111,7 @@ func (s *Scheduler) runWorker(ctx context.Context, id int) {
 		switch {
 		case err == nil:
 			return
-		case errors.Is(err, context.Canceled):
+		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 			return
 		default:
 			s.log.Warn("user worker failed, restarting", "worker_id", id, "err", err, "backoff", backoff)

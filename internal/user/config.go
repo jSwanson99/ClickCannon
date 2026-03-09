@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	Enabled              bool                 `yaml:"enabled"`
+	Duration             time.Duration        `yaml:"duration"`
 	Threads              int                  `yaml:"threads"`
 	RampDuration         time.Duration        `yaml:"ramp_duration"`
 	ClickHouseDSN        string               `yaml:"clickhouse_dsn"`

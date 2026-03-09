@@ -55,6 +55,8 @@ insert:
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
   # an exact limit.
   batch_size: 100000
+  # When enabled, connections are balanced evenly across nodes in the cluster.
+  # A brute force method is used, which may spam connections until it gets the correct IP.
   balance_nodes: false
   clickhouse:
     address: localhost:9000
@@ -83,6 +85,8 @@ metrics:
 # Settings related to user/query benchmarking
 user:
   enabled: true
+  # Optional. How long the user simulation runs.
+  duration: 1h
   # Number of concurrent simulated users
   threads: 10
   # How long it takes to start all users

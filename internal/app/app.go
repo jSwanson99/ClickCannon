@@ -17,7 +17,10 @@ func setupErr(err error) {
 func Setup() (string, string, *Config, *slog.Logger, func()) {
 	time.Local = time.UTC
 
-	runID := NewRunID()
+	runID := os.Getenv("OTELSPAM_RUN_ID")
+	if runID == "" {
+		runID = NewRunID()
+	}
 
 	cfg, cfgFileName, err := LoadConfig()
 	if err != nil {

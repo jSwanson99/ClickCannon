@@ -93,7 +93,11 @@ func LoadConfig() (*Config, string, error) {
 	flag.Parse()
 
 	if configPath == "" {
-		return nil, "", errors.New("--config flag is required")
+		configPath = os.Getenv("OTELSPAM_CONFIG")
+	}
+
+	if configPath == "" {
+		return nil, "", errors.New("--config flag or OTELSPAM_CONFIG env var is required")
 	}
 
 	configFileName := filepath.Base(configPath)

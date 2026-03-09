@@ -25,6 +25,16 @@ Run the program:
 go run otelspam --config test.yaml
 ```
 
+The config path can also be set via the `OTELSPAM_CONFIG` environment variable instead of the `--config` flag:
+```sh
+OTELSPAM_CONFIG=test.yaml go run otelspam
+```
+
+By default a random UUID is generated as the run ID each time the program starts. To set a specific run ID, set `OTELSPAM_RUN_ID`:
+```sh
+OTELSPAM_RUN_ID=my-run-id go run otelspam --config test.yaml
+```
+
 # Grafana
 
 A Grafana dashboard is included. It reads metrics from the configured `metrics` ClickHouse server.

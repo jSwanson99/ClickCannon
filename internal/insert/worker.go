@@ -173,6 +173,19 @@ func (w *worker) Run(ctx context.Context) error {
 
 			return err
 		}
+
+		// Release any block still held after context cancellation.
+		// OnInput may have loaded a block into currentBlock without getting
+		// a chance to release it before ch-go aborted the query.
+		if currentBlock != nil {
+			if currentInput != nil {
+				insertBlock.Reset()
+				swapInput(currentInput, insertInput)
+				currentInput = nil
+			}
+			w.blockPool.Release(currentBlock)
+			currentBlock = nil
+		}
 	}
 
 	w.log.Info("stopped")

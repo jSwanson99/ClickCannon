@@ -217,6 +217,10 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 			}
 		}
 
+		if w.nodeBalancer == nil {
+			break
+		}
+
 		hostIP, err = w.getNode(ctx, c)
 		if err != nil {
 			w.log.Error("failed to get node", "attempt", attempt, "err", err)
@@ -224,7 +228,7 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 			continue
 		}
 
-		if w.nodeBalancer == nil || w.nodeBalancer.IsNextNode(hostIP) {
+		if w.nodeBalancer.IsNextNode(hostIP) {
 			break
 		}
 

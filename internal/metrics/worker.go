@@ -192,6 +192,8 @@ func (w *Worker) collectRuntimeMetrics() {
 	w.SetMetric(ProgramPauseTotalNs, ms.PauseTotalNs)
 	w.SetMetric(ProgramNextGCBytes, ms.NextGC)
 
+	w.SetMetric(ProgramNumCPU, uint64(runtime.NumCPU()))
+
 	var ru syscall.Rusage
 	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err == nil {
 		w.SetMetric(ProgramCPUUserNs, uint64(ru.Utime.Nano()))
@@ -225,6 +227,7 @@ func (w *Worker) resetMetrics() {
 		case ProgramNextGCBytes:
 		case ProgramCPUUserNs:
 		case ProgramCPUSysNs:
+		case ProgramNumCPU:
 		default:
 			w.metrics[name] = 0
 		}

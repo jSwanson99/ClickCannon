@@ -46,4 +46,5 @@ const (
 	ProgramNextGCBytes      Name = "program_next_gc_bytes"
 	ProgramCPUUserNs        Name = "program_cpu_user_ns"
 	ProgramCPUSysNs         Name = "program_cpu_sys_ns"
+	ProgramNumCPU           Name = "program_num_cpu"
 )

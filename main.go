@@ -51,7 +51,7 @@ func main() {
 		"batch_size", cfg.Insert.BatchSize,
 	)
 
-	blocksToAlloc := (cfg.Disk.Threads + cfg.Insert.Threads) * 4
+	blocksToAlloc := (cfg.Disk.Threads + cfg.Insert.Threads) * 2
 	insertQueue := make(chan block.SharedColumns, blocksToAlloc)
 	var (
 		blockPool block.Pool

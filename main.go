@@ -150,7 +150,6 @@ func main() {
 	case <-terminate:
 		log.Info("stop requested")
 	case <-done:
-		log.Info("all workers completed")
 	}
 
 	cancelDisk()

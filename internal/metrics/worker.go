@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"otelspam/internal/block"
+	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -129,6 +131,8 @@ func (w *Worker) Run(ctx context.Context) error {
 			// this should be dynamically adjustable in the future, but for now we set it constantly
 			w.SetMetric(TargetBytesPerSecond, w.targetBytesPerSecond)
 
+			w.collectRuntimeMetrics()
+
 			if w.insertSQL != "" {
 				err := w.pushMetrics(ctx)
 				if err != nil {
@@ -177,6 +181,24 @@ func (w *Worker) applyMetricEntry(m Entry) {
 	}
 }
 
+func (w *Worker) collectRuntimeMetrics() {
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+
+	w.SetMetric(ProgramHeapAllocBytes, ms.HeapAlloc)
+	w.SetMetric(ProgramSysBytes, ms.Sys)
+	w.SetMetric(ProgramNumGoroutines, uint64(runtime.NumGoroutine()))
+	w.SetMetric(ProgramNumGC, uint64(ms.NumGC))
+	w.SetMetric(ProgramPauseTotalNs, ms.PauseTotalNs)
+	w.SetMetric(ProgramNextGCBytes, ms.NextGC)
+
+	var ru syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err == nil {
+		w.SetMetric(ProgramCPUUserNs, uint64(ru.Utime.Nano()))
+		w.SetMetric(ProgramCPUSysNs, uint64(ru.Stime.Nano()))
+	}
+}
+
 func (w *Worker) resetMetrics() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -195,6 +217,14 @@ func (w *Worker) resetMetrics() {
 		case BlockPoolCount:
 		case BlockPoolCapacity:
 		case BlockQueueLength:
+		case ProgramHeapAllocBytes:
+		case ProgramSysBytes:
+		case ProgramNumGoroutines:
+		case ProgramNumGC:
+		case ProgramPauseTotalNs:
+		case ProgramNextGCBytes:
+		case ProgramCPUUserNs:
+		case ProgramCPUSysNs:
 		default:
 			w.metrics[name] = 0
 		}

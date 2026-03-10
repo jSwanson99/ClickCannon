@@ -8,6 +8,7 @@ type Config struct {
 	Database      string `yaml:"database"`
 	RunTable      string `yaml:"run_table"`
 	MetricsTable  string `yaml:"metrics_table"`
+	CreateSchema  bool   `yaml:"create_schema"`
 }
 
 func (c Config) Validate() error {

@@ -60,26 +60,28 @@ func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytes
 		}
 		w.log.Info("clickhouse connected")
 
-		err = w.conn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %q", cfg.Database))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create metrics database: %w", err)
-		}
+		if cfg.CreateSchema {
+			err = w.conn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %q", cfg.Database))
+			if err != nil {
+				return nil, fmt.Errorf("failed to create metrics database: %w", err)
+			}
 
-		runDDL := fmt.Sprintf(`
-			CREATE TABLE IF NOT EXISTS %q.%q (
-				run_id String,
-				name String,
-				timestamp DateTime64(3),
-			    data_type LowCardinality(String),
-			    target_bytes_per_second UInt64,
-			    attributes Map(LowCardinality(String), String)
-			) Engine = MergeTree()
-			ORDER BY (run_id, timestamp)
-		`, cfg.Database, cfg.RunTable)
+			runDDL := fmt.Sprintf(`
+				CREATE TABLE IF NOT EXISTS %q.%q (
+					run_id String,
+					name String,
+					timestamp DateTime64(3),
+				    data_type LowCardinality(String),
+				    target_bytes_per_second UInt64,
+				    attributes Map(LowCardinality(String), String)
+				) Engine = MergeTree()
+				ORDER BY (run_id, timestamp)
+			`, cfg.Database, cfg.RunTable)
 
-		err = w.conn.Exec(context.Background(), runDDL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create run table: %w", err)
+			err = w.conn.Exec(context.Background(), runDDL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create run table: %w", err)
+			}
 		}
 
 		insertRunSQL := fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?, ?, ?)`, cfg.Database, cfg.RunTable)
@@ -89,20 +91,22 @@ func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytes
 		}
 		w.log.Info("inserted run info")
 
-		metricsDDL := fmt.Sprintf(`
-			CREATE TABLE IF NOT EXISTS %q.%q (
-				run_id String,
-				metric_name LowCardinality(String),
-				timestamp DateTime64(3),
-				value UInt64,
-				attributes Map(LowCardinality(String), String)
-			) Engine = MergeTree()
-			ORDER BY (run_id, metric_name, timestamp)
-		`, cfg.Database, cfg.MetricsTable)
+		if cfg.CreateSchema {
+			metricsDDL := fmt.Sprintf(`
+				CREATE TABLE IF NOT EXISTS %q.%q (
+					run_id String,
+					metric_name LowCardinality(String),
+					timestamp DateTime64(3),
+					value UInt64,
+					attributes Map(LowCardinality(String), String)
+				) Engine = MergeTree()
+				ORDER BY (run_id, metric_name, timestamp)
+			`, cfg.Database, cfg.MetricsTable)
 
-		err = w.conn.Exec(context.Background(), metricsDDL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create metrics table: %w", err)
+			err = w.conn.Exec(context.Background(), metricsDDL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create metrics table: %w", err)
+			}
 		}
 
 		w.insertSQL = fmt.Sprintf(`INSERT INTO %q.%q VALUES (?, ?, ?, ?, ?)`, cfg.Database, cfg.MetricsTable)

@@ -121,8 +121,11 @@ func newLogsColumnsWithTimestampTime(c *LogsSharedColumns) ([]string, []proto.Co
 }
 
 func NewLogsSharedColumns(hasTimestampTime bool) *LogsSharedColumns {
-	strSize := 512
-	bSize := 16384
+	// strSize := 512
+	// bSize := 16384
+	// Let the runtime figure it out
+	strSize := 0
+	bSize := 0
 
 	c := LogsSharedColumns{
 		timestamp:          newColDateTime64Raw(bSize),

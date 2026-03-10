@@ -35,8 +35,11 @@ type TracesSharedColumns struct {
 }
 
 func NewTracesSharedColumns() *TracesSharedColumns {
-	strSize := 512
-	bSize := 16384
+	// strSize := 512
+	// bSize := 16384
+	// Let the runtime figure it out
+	strSize := 0
+	bSize := 0
 
 	c := TracesSharedColumns{
 		timestamp:          newColDateTime64Raw(bSize),

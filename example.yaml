@@ -79,10 +79,13 @@ metrics:
   enabled: true
   # ClickHouse DSN URL, same format as OTel exporter.
   clickhouse_dsn: tcp://localhost:9000
-  # Database and tables for capturing performance metrics, these are created automatically.
+
+  # Database and tables for capturing performance metrics.
   database: otelspam
   run_table: runs
   metrics_table: perf
+  # Controls whether the metrics database/tables are created on startup
+  create_schema: true
 
 # Settings related to user/query benchmarking
 user:

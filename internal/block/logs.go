@@ -229,6 +229,15 @@ func (c *LogsSharedColumns) ShiftTimestamp(snapshot ReplayTimeSnapshot) {
 	}
 }
 
+func (c *LogsSharedColumns) MutateIDs(loopIndex int) {
+	if loopIndex == 0 {
+		return
+	}
+
+	shiftColStrLastByte(&c.traceID, loopIndex)
+	shiftColStrLastByte(&c.spanID, loopIndex)
+}
+
 func (c *LogsSharedColumns) UpdateTimestampNow() {
 	for i := range c.timestamp.Data {
 		shiftedTime := time.Now()

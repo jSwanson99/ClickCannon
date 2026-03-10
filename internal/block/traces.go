@@ -192,6 +192,16 @@ func (c *TracesSharedColumns) ShiftTimestamp(snapshot ReplayTimeSnapshot) {
 	}
 }
 
+func (c *TracesSharedColumns) MutateIDs(loopIndex int) {
+	if loopIndex == 0 {
+		return
+	}
+
+	shiftColStrLastByte(&c.traceID, loopIndex)
+	shiftColStrLastByte(&c.spanID, loopIndex)
+	shiftColStrLastByte(&c.parentSpanID, loopIndex)
+}
+
 func (c *TracesSharedColumns) UpdateTimestampNow() {
 	for i := range c.timestamp.Data {
 		shiftedTime := time.Now()

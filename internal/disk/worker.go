@@ -200,6 +200,8 @@ func (w *worker) decodeBlock(ctx context.Context, rd *proto.Reader, dec *proto.B
 		cols.UpdateTimestampMinute()
 	}
 
+	cols.MutateIDs(w.file.LoopIndex)
+
 	w.metrics.IncrementMetric(metrics.ReadRowsPerSecond, uint64(colsRes.Rows()))
 	w.metrics.IncrementMetric(metrics.TotalRows, uint64(colsRes.Rows()))
 

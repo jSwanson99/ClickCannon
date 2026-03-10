@@ -8,29 +8,29 @@ import (
 	"time"
 )
 
-type Behavior interface {
+type Workflow interface {
 	NextQuery(ctx context.Context) (*ExecutableQuery, error)
 	ThinkTime() time.Duration
 	Name() string
 }
 
-func newBehavior(log *slog.Logger, userCfg *Config, name string, cfg BehaviorBaseConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) (Behavior, error) {
+func newWorkflow(log *slog.Logger, userCfg *Config, name string, cfg WorkflowBaseConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) (Workflow, error) {
 	switch c := cfg.Config.(type) {
-	case QueriesBehaviorConfig:
-		return NewQueriesBehavior(log, userCfg, name, &c, queryRunner, rng, datasetStart, datasetEnd), nil
-	case HARBehaviorConfig:
-		//return NewHARBehavior(), nil
-		return nil, fmt.Errorf("unimplemented behavior type %q", cfg.Type)
+	case QueriesWorkflowConfig:
+		return NewQueriesWorkflow(log, userCfg, name, &c, queryRunner, rng, datasetStart, datasetEnd), nil
+	case HARWorkflowConfig:
+		//return NewHARWorkflow(), nil
+		return nil, fmt.Errorf("unimplemented workflow type %q", cfg.Type)
 	default:
-		return nil, fmt.Errorf("unknown behavior type %q", cfg.Type)
+		return nil, fmt.Errorf("unknown workflow type %q", cfg.Type)
 	}
 }
 
-type QueriesBehavior struct {
+type QueriesWorkflow struct {
 	log          *slog.Logger
 	name         string
 	userCfg      *Config
-	cfg          *QueriesBehaviorConfig
+	cfg          *QueriesWorkflowConfig
 	queryRunner  QueryRunner
 	rng          *rand.Rand
 	index        int
@@ -40,8 +40,8 @@ type QueriesBehavior struct {
 	sampledTimeRange *ResolvedTimeRange
 }
 
-func NewQueriesBehavior(log *slog.Logger, userCfg *Config, name string, cfg *QueriesBehaviorConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) *QueriesBehavior {
-	return &QueriesBehavior{
+func NewQueriesWorkflow(log *slog.Logger, userCfg *Config, name string, cfg *QueriesWorkflowConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) *QueriesWorkflow {
+	return &QueriesWorkflow{
 		log:          log,
 		name:         name,
 		userCfg:      userCfg,
@@ -53,11 +53,11 @@ func NewQueriesBehavior(log *slog.Logger, userCfg *Config, name string, cfg *Que
 	}
 }
 
-func (b *QueriesBehavior) Name() string {
+func (b *QueriesWorkflow) Name() string {
 	return b.name
 }
 
-func (b *QueriesBehavior) anchor() time.Time {
+func (b *QueriesWorkflow) anchor() time.Time {
 	switch b.cfg.TimeAnchor {
 	case TimeAnchorNow:
 		return time.Now()
@@ -72,7 +72,7 @@ func (b *QueriesBehavior) anchor() time.Time {
 	}
 }
 
-func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, error) {
+func (b *QueriesWorkflow) NextQuery(ctx context.Context) (*ExecutableQuery, error) {
 	queryIndex, q := b.nextQueryConfig()
 
 	params := QueryParams{
@@ -109,7 +109,7 @@ func (b *QueriesBehavior) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 	}, nil
 }
 
-func (b *QueriesBehavior) ThinkTime() time.Duration {
+func (b *QueriesWorkflow) ThinkTime() time.Duration {
 	tt := b.cfg.ThinkTime
 	spread := tt.Max - tt.Min
 	if spread <= 0 {
@@ -119,7 +119,7 @@ func (b *QueriesBehavior) ThinkTime() time.Duration {
 	return tt.Min + time.Duration(b.rng.Int64N(int64(spread)))
 }
 
-func (b *QueriesBehavior) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
+func (b *QueriesWorkflow) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
 	// Query-level override
 	if q.TimeRange != nil {
 		if q.TimeRange.Type == TimeRangeNone {
@@ -151,7 +151,7 @@ func (b *QueriesBehavior) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
 	return b.sampledTimeRange
 }
 
-func (b *QueriesBehavior) nextQueryConfig() (int, *QueryConfig) {
+func (b *QueriesWorkflow) nextQueryConfig() (int, *QueryConfig) {
 	queries := b.cfg.Queries
 
 	if b.cfg.Random {

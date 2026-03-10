@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (b *BehaviorBaseConfig) UnmarshalYAML(ctx context.Context, unmarshal func(any) error) error {
+func (b *WorkflowBaseConfig) UnmarshalYAML(ctx context.Context, unmarshal func(any) error) error {
 	var base struct {
 		Type string `yaml:"type"`
 		Name string `yaml:"name"`
@@ -17,16 +17,16 @@ func (b *BehaviorBaseConfig) UnmarshalYAML(ctx context.Context, unmarshal func(a
 	b.Name = base.Name
 
 	var (
-		cfg BehaviorConfig
+		cfg WorkflowConfig
 		err error
 	)
 	switch base.Type {
 	case "queries":
-		cfg, err = unmarshalBehavior[QueriesBehaviorConfig](unmarshal)
+		cfg, err = unmarshalWorkflow[QueriesWorkflowConfig](unmarshal)
 	case "har":
-		cfg, err = unmarshalBehavior[HARBehaviorConfig](unmarshal)
+		cfg, err = unmarshalWorkflow[HARWorkflowConfig](unmarshal)
 	default:
-		return fmt.Errorf("unknown behavior type %q", base.Type)
+		return fmt.Errorf("unknown workflow type %q", base.Type)
 	}
 
 	if err != nil {
@@ -37,7 +37,7 @@ func (b *BehaviorBaseConfig) UnmarshalYAML(ctx context.Context, unmarshal func(a
 	return nil
 }
 
-func unmarshalBehavior[T BehaviorConfig](unmarshal func(any) error) (T, error) {
+func unmarshalWorkflow[T WorkflowConfig](unmarshal func(any) error) (T, error) {
 	var cfg T
 	if err := unmarshal(&cfg); err != nil {
 		return cfg, err

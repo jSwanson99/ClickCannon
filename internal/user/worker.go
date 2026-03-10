@@ -16,17 +16,17 @@ type Worker struct {
 	log *slog.Logger
 
 	cfg         *Config
-	behavior    Behavior
+	workflow    Workflow
 	queryRunner QueryRunner
 	metrics     metrics.Store
 }
 
-func NewWorker(id int, log *slog.Logger, cfg *Config, behavior Behavior, queryRunner QueryRunner, metrics metrics.Store) *Worker {
+func NewWorker(id int, log *slog.Logger, cfg *Config, workflow Workflow, queryRunner QueryRunner, metrics metrics.Store) *Worker {
 	return &Worker{
 		id:          id,
 		log:         log, // scheduler sets component/id attributes
 		cfg:         cfg,
-		behavior:    behavior,
+		workflow:    workflow,
 		metrics:     metrics,
 		queryRunner: queryRunner,
 	}
@@ -43,14 +43,14 @@ func (w *Worker) Run(ctx context.Context) error {
 		default:
 		}
 
-		q, err := w.behavior.NextQuery(ctx)
+		q, err := w.workflow.NextQuery(ctx)
 		if err != nil && errors.Is(err, context.Canceled) {
 			continue
 		} else if err != nil && errors.Is(err, sql.ErrNoRows) {
 			w.log.Debug("preflight query had no rows, skipping", "err", err)
 			continue
 		} else if err != nil {
-			return fmt.Errorf("worker %d behavior error: %w", w.id, err)
+			return fmt.Errorf("worker %d workflow error: %w", w.id, err)
 		}
 		if q == nil {
 			return nil
@@ -65,7 +65,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		} else {
 			attr := make(map[string]string, 7)
 			attr["query_name"] = result.Query.Name
-			attr["behavior_name"] = w.behavior.Name()
+			attr["workflow_name"] = w.workflow.Name()
 			if result.Query.TimeRange > 0 {
 				attr["time_range_seconds"] = strconv.Itoa(int(result.Query.TimeRange.Seconds()))
 			}
@@ -95,7 +95,7 @@ func (w *Worker) Run(ctx context.Context) error {
 }
 
 func (w *Worker) think(ctx context.Context) {
-	delay := w.behavior.ThinkTime()
+	delay := w.workflow.ThinkTime()
 	select {
 	case <-time.After(delay):
 	case <-ctx.Done():

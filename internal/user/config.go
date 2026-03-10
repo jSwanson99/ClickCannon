@@ -18,7 +18,7 @@ type Config struct {
 	Table                string               `yaml:"table"`
 	DatasetUnixStart     uint64               `yaml:"dataset_unix_start"`
 	DatasetUnixEnd       uint64               `yaml:"dataset_unix_end"`
-	Behaviors            []BehaviorBaseConfig `yaml:"behaviors"`
+	Workflows            []WorkflowBaseConfig `yaml:"workflows"`
 }
 
 func (c Config) Validate() error {
@@ -46,39 +46,39 @@ func (c Config) Validate() error {
 		return errors.New("must set table")
 	}
 
-	for len(c.Behaviors) == 0 {
-		return errors.New("must configure at least one user behavior")
+	for len(c.Workflows) == 0 {
+		return errors.New("must configure at least one user workflow")
 	}
 
-	for i, behavior := range c.Behaviors {
-		if behavior.Config == nil {
-			return fmt.Errorf("behaviors[%d]: unknown type %q must set type to one of: query, har", i, behavior.Type)
+	for i, workflow := range c.Workflows {
+		if workflow.Config == nil {
+			return fmt.Errorf("workflows[%d]: unknown type %q must set type to one of: query, har", i, workflow.Type)
 		}
 
-		if behavior.Name == "" {
-			return fmt.Errorf("behaviors[%d] (type: %q): must set name", i, behavior.Type)
+		if workflow.Name == "" {
+			return fmt.Errorf("workflows[%d] (type: %q): must set name", i, workflow.Type)
 		}
 
-		if err := behavior.Config.Validate(c); err != nil {
-			return fmt.Errorf("behaviors[%d] (type: %q, name: %q): %w", i, behavior.Type, behavior.Name, err)
+		if err := workflow.Config.Validate(c); err != nil {
+			return fmt.Errorf("workflows[%d] (type: %q, name: %q): %w", i, workflow.Type, workflow.Name, err)
 		}
 	}
 
 	return nil
 }
 
-type BehaviorBaseConfig struct {
+type WorkflowBaseConfig struct {
 	Type   string `yaml:"type"`
 	Name   string `yaml:"name"`
-	Config BehaviorConfig
+	Config WorkflowConfig
 }
 
-type BehaviorConfig interface {
-	behaviorConfig()
+type WorkflowConfig interface {
+	workflowConfig()
 	Validate(userCfg Config) error
 }
 
-type QueriesBehaviorConfig struct {
+type QueriesWorkflowConfig struct {
 	Random           bool             `yaml:"random"`
 	ThinkTime        ThinkTimeConfig  `yaml:"think_time"`
 	TimeAnchor       TimeAnchor       `yaml:"time_anchor"`
@@ -87,9 +87,9 @@ type QueriesBehaviorConfig struct {
 	Queries          []QueryConfig    `yaml:"queries"`
 }
 
-func (QueriesBehaviorConfig) behaviorConfig() {}
+func (QueriesWorkflowConfig) workflowConfig() {}
 
-func (c QueriesBehaviorConfig) Validate(userCfg Config) error {
+func (c QueriesWorkflowConfig) Validate(userCfg Config) error {
 	if c.TimeAnchor == TimeAnchorDatasetEnd && userCfg.DatasetUnixEnd == 0 {
 		return fmt.Errorf("dataset_unix_end must be set when time_anchor is set to %q", c.TimeAnchor)
 	} else if c.TimeAnchor == TimeAnchorDatasetRandom && (userCfg.DatasetUnixStart == 0 || userCfg.DatasetUnixEnd == 0) {
@@ -125,16 +125,16 @@ func (c QueriesBehaviorConfig) Validate(userCfg Config) error {
 	return nil
 }
 
-type HARBehaviorConfig struct {
+type HARWorkflowConfig struct {
 	File      string          `yaml:"file"`
 	ThinkTime ThinkTimeConfig `yaml:"think_time"`
 }
 
-func (HARBehaviorConfig) behaviorConfig() {}
+func (HARWorkflowConfig) workflowConfig() {}
 
-func (c HARBehaviorConfig) Validate(_ Config) error {
+func (c HARWorkflowConfig) Validate(_ Config) error {
 	if c.File == "" {
-		return errors.New("har behavior requires a file path")
+		return errors.New("har workflow requires a file path")
 	}
 
 	return nil

@@ -135,21 +135,21 @@ func (s *Scheduler) newWorker(id int) (*Worker, error) {
 	datasetStart := time.Unix(int64(s.cfg.DatasetUnixStart), 0)
 	datasetEnd := time.Unix(int64(s.cfg.DatasetUnixEnd), 0)
 
-	behaviorCfg := s.cfg.Behaviors[0]
+	workflowCfg := s.cfg.Workflows[0]
 
-	workerLog := s.workerLog.With("component", "user_worker", "id", id, "behavior", behaviorCfg.Type, "behavior_name", behaviorCfg.Name)
+	workerLog := s.workerLog.With("component", "user_worker", "id", id, "workflow", workflowCfg.Type, "workflow_name", workflowCfg.Name)
 
 	queryRunner, err := NewClickHouseQueryRunner(s.cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create query runner: %w", err)
 	}
 
-	behavior, err := newBehavior(workerLog, s.cfg, behaviorCfg.Name, behaviorCfg, queryRunner, rng, datasetStart, datasetEnd)
+	workflow, err := newWorkflow(workerLog, s.cfg, workflowCfg.Name, workflowCfg, queryRunner, rng, datasetStart, datasetEnd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create behavior (type: %q, name: %q): %w", behaviorCfg.Type, behaviorCfg.Name, err)
+		return nil, fmt.Errorf("failed to create workflow (type: %q, name: %q): %w", workflowCfg.Type, workflowCfg.Name, err)
 	}
 
-	return NewWorker(id, workerLog, s.cfg, behavior, queryRunner, s.metrics), nil
+	return NewWorker(id, workerLog, s.cfg, workflow, queryRunner, s.metrics), nil
 }
 
 func rampInterval(ramp time.Duration, threads int) time.Duration {

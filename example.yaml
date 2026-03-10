@@ -14,6 +14,19 @@ app:
   # A seed for the test. Will be used with random number generation for reproducible tests.
   seed: "some string"
 
+pprof:
+  # Address to listen on for the pprof HTTP endpoint.
+  # Leave empty (or omit this section) to disable pprof.
+  # Bind to localhost and access via SSH tunnel:
+  #   ssh -L 6060:localhost:6060 user@server
+  # Then profile remotely:
+  #   go tool pprof http://localhost:6060/debug/pprof/heap
+  #   go tool pprof http://localhost:6060/debug/pprof/profile    # 30s CPU profile
+  #   go tool pprof http://localhost:6060/debug/pprof/goroutine
+  # Or download a snapshot to inspect offline:
+  #   curl -s http://localhost:6060/debug/pprof/heap > heap.prof && go tool pprof heap.prof
+  address: ""
+
 disk:
   enabled: true
   threads: 4

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"otelspam/internal/app"
@@ -19,6 +21,15 @@ func main() {
 	runID, cfgFileName, cfg, log, closeLogFile := app.Setup()
 	if closeLogFile != nil {
 		defer closeLogFile()
+	}
+
+	if cfg.Pprof.Address != "" {
+		go func() {
+			log.Info("pprof listening", "address", cfg.Pprof.Address)
+			if err := http.ListenAndServe(cfg.Pprof.Address, nil); err != nil {
+				log.Error("pprof server error", "err", err)
+			}
+		}()
 	}
 
 	runName := cfgFileName

@@ -17,6 +17,12 @@ import (
 const ConfigDataTypeLogs = "logs"
 const ConfigDataTypeTraces = "traces"
 
+type PprofConfig struct {
+	// Address to listen on for the pprof HTTP endpoint (e.g. "localhost:6060").
+	// Leave empty to disable pprof.
+	Address string `yaml:"address"`
+}
+
 type Config struct {
 	App struct {
 		Name         string `yaml:"name"`
@@ -31,6 +37,7 @@ type Config struct {
 		Seed string `yaml:"seed"`
 	} `yaml:"app"`
 
+	Pprof   PprofConfig    `yaml:"pprof"`
 	Disk    disk.Config    `yaml:"disk"`
 	Insert  insert.Config  `yaml:"insert"`
 	Metrics metrics.Config `yaml:"metrics"`

@@ -59,7 +59,7 @@ func main() {
 
 	if cfg.Disk.ReuseBlocks {
 		blockPool, err = block.NewStructPool[block.SharedColumns](blocksToAlloc, func() (block.SharedColumns, error) {
-			return block.NewTracesSharedColumns(), nil
+			return blockCreateFunc(), nil
 		})
 	} else {
 		blockPool = block.NewGarbageBlockPool(blockCreateFunc)

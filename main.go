@@ -49,7 +49,7 @@ func main() {
 	var blockCreateFunc func() block.SharedColumns
 	if cfg.App.DataType == app.ConfigDataTypeLogs {
 		blockCreateFunc = func() block.SharedColumns {
-			return block.NewLogsSharedColumns()
+			return block.NewLogsSharedColumns(cfg.Disk.HasTimestampTime)
 		}
 	} else if cfg.App.DataType == app.ConfigDataTypeTraces {
 		blockCreateFunc = func() block.SharedColumns {

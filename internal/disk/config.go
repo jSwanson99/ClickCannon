@@ -18,6 +18,11 @@ type Config struct {
 	MiBytesPerSecondLimit uint64 `yaml:"mb_per_second_limit"`
 
 	ShiftTimestamp string `yaml:"shift_timestamp"`
+
+	// Whether the disk files contain the TimestampTime column.
+	// TimestampTime is derived from Timestamp on insert, so it is never inserted.
+	// Set to true if the files on disk were exported with TimestampTime present.
+	HasTimestampTime bool `yaml:"has_timestamp_time"`
 }
 
 func (c Config) Validate() error {

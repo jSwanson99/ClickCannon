@@ -24,11 +24,103 @@ type LogsSharedColumns struct {
 	scopeAttributes    *proto.ColMap[string, string]
 	logAttributes      *proto.ColMap[string, string]
 
-	Names []string
-	Cols  []proto.Column
+	hasTimestampTime bool
+
+	// insertNames/insertCols are used for inserts (TimestampTime always excluded).
+	insertNames []string
+	insertCols  []proto.Column
+
+	// decodeNames/decodeCols are the disk decode columns.
+	// When hasTimestampTime=true they include TimestampTime; otherwise same as insertNames/insertCols.
+	// Both point to the same column data, so we can safely use them for decode/insert.
+	// This is also why Reset should use decodeCols since it contains all columns.
+	decodeNames []string
+	decodeCols  []proto.Column
 }
 
-func NewLogsSharedColumns() *LogsSharedColumns {
+func newLogsColumns(c *LogsSharedColumns) ([]string, []proto.Column) {
+	names := []string{
+		"Timestamp",
+		"TraceId",
+		"SpanId",
+		"TraceFlags",
+		"SeverityText",
+		"SeverityNumber",
+		"ServiceName",
+		"Body",
+		"ResourceSchemaUrl",
+		"ResourceAttributes",
+		"ScopeSchemaUrl",
+		"ScopeName",
+		"ScopeVersion",
+		"ScopeAttributes",
+		"LogAttributes",
+	}
+
+	cols := []proto.Column{
+		&c.timestamp,
+		&c.traceID,
+		&c.spanID,
+		&c.traceFlags,
+		c.severityText,
+		&c.severityNumber,
+		c.serviceName,
+		&c.body,
+		c.resourceSchemaUrl,
+		c.resourceAttributes,
+		c.scopeSchemaUrl,
+		&c.scopeName,
+		c.scopeVersion,
+		c.scopeAttributes,
+		c.logAttributes,
+	}
+
+	return names, cols
+}
+
+func newLogsColumnsWithTimestampTime(c *LogsSharedColumns) ([]string, []proto.Column) {
+	names := []string{
+		"Timestamp",
+		"TimestampTime",
+		"TraceId",
+		"SpanId",
+		"TraceFlags",
+		"SeverityText",
+		"SeverityNumber",
+		"ServiceName",
+		"Body",
+		"ResourceSchemaUrl",
+		"ResourceAttributes",
+		"ScopeSchemaUrl",
+		"ScopeName",
+		"ScopeVersion",
+		"ScopeAttributes",
+		"LogAttributes",
+	}
+
+	cols := []proto.Column{
+		&c.timestamp,
+		&c.timestampTime,
+		&c.traceID,
+		&c.spanID,
+		&c.traceFlags,
+		c.severityText,
+		&c.severityNumber,
+		c.serviceName,
+		&c.body,
+		c.resourceSchemaUrl,
+		c.resourceAttributes,
+		c.scopeSchemaUrl,
+		&c.scopeName,
+		c.scopeVersion,
+		c.scopeAttributes,
+		c.logAttributes,
+	}
+
+	return names, cols
+}
+
+func NewLogsSharedColumns(hasTimestampTime bool) *LogsSharedColumns {
 	strSize := 512
 	bSize := 16384
 
@@ -50,79 +142,39 @@ func NewLogsSharedColumns() *LogsSharedColumns {
 		scopeAttributes:    newColMapLowCardinalityStringString(strSize, bSize),
 		logAttributes:      newColMapLowCardinalityStringString(strSize, bSize),
 
-		Names: nil,
-		Cols:  nil,
+		hasTimestampTime: hasTimestampTime,
 	}
 
-	c.Names = []string{
-		"Timestamp",
-		"TimestampTime",
-		"TraceId",
-		"SpanId",
-		"TraceFlags",
-		"SeverityText",
-		"SeverityNumber",
-		"ServiceName",
-		"Body",
-		"ResourceSchemaUrl",
-		"ResourceAttributes",
-		"ScopeSchemaUrl",
-		"ScopeName",
-		"ScopeVersion",
-		"ScopeAttributes",
-		"LogAttributes",
-	}
-	c.Cols = []proto.Column{
-		&c.timestamp,
-		&c.timestampTime,
-		&c.traceID,
-		&c.spanID,
-		&c.traceFlags,
-		c.severityText,
-		&c.severityNumber,
-		c.serviceName,
-		&c.body,
-		c.resourceSchemaUrl,
-		c.resourceAttributes,
-		c.scopeSchemaUrl,
-		&c.scopeName,
-		c.scopeVersion,
-		c.scopeAttributes,
-		c.logAttributes,
+	c.insertNames, c.insertCols = newLogsColumns(&c)
+
+	if hasTimestampTime {
+		c.decodeNames, c.decodeCols = newLogsColumnsWithTimestampTime(&c)
+	} else {
+		c.decodeNames, c.decodeCols = c.insertNames, c.insertCols
 	}
 
 	return &c
 }
 
 func (c *LogsSharedColumns) Reset() {
-	for _, col := range c.Cols {
+	for _, col := range c.decodeCols {
 		col.Reset()
 	}
 }
 
 func (c *LogsSharedColumns) Results() proto.Results {
-	res := make(proto.Results, 0, len(c.Names))
-	for i := range c.Names {
-		col := proto.ResultColumn{
-			Name: c.Names[i],
-			Data: c.Cols[i],
-		}
-
-		res = append(res, col)
+	res := make(proto.Results, 0, len(c.decodeNames))
+	for i := range c.decodeNames {
+		res = append(res, proto.ResultColumn{Name: c.decodeNames[i], Data: c.decodeCols[i]})
 	}
 
 	return res
 }
 
 func (c *LogsSharedColumns) Input() proto.Input {
-	in := make(proto.Input, 0, len(c.Names))
-	for i := range c.Names {
-		col := proto.InputColumn{
-			Name: c.Names[i],
-			Data: c.Cols[i],
-		}
-
-		in = append(in, col)
+	in := make(proto.Input, 0, len(c.insertNames))
+	for i := range c.insertNames {
+		in = append(in, proto.InputColumn{Name: c.insertNames[i], Data: c.insertCols[i]})
 	}
 
 	return in
@@ -132,7 +184,10 @@ func (c *LogsSharedColumns) UpdateDate() {
 	for i := range c.timestamp.Data {
 		shiftedTime := ShiftDateToToday(c.timestamp.Data[i].Time(c.timestamp.Precision))
 		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
-		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+
+		if c.hasTimestampTime {
+			c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+		}
 	}
 }
 
@@ -140,7 +195,10 @@ func (c *LogsSharedColumns) UpdateTimestampMinute() {
 	for i := range c.timestamp.Data {
 		shiftedTime := ShiftTimestampMinute(c.timestamp.Data[i].Time(c.timestamp.Precision))
 		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
-		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+
+		if c.hasTimestampTime {
+			c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+		}
 	}
 }
 
@@ -164,7 +222,10 @@ func (c *LogsSharedColumns) ShiftTimestamp(snapshot ReplayTimeSnapshot) {
 	for i := range c.timestamp.Data {
 		shiftedTime := snapshot.ShiftTimestamp(c.timestamp.Data[i].Time(c.timestamp.Precision))
 		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
-		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+
+		if c.hasTimestampTime {
+			c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+		}
 	}
 }
 
@@ -172,6 +233,9 @@ func (c *LogsSharedColumns) UpdateTimestampNow() {
 	for i := range c.timestamp.Data {
 		shiftedTime := time.Now()
 		c.timestamp.Data[i] = proto.ToDateTime64(shiftedTime, c.timestamp.Precision)
-		c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+
+		if c.hasTimestampTime {
+			c.timestampTime.Data[i] = proto.ToDateTime(shiftedTime)
+		}
 	}
 }

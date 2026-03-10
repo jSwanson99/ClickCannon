@@ -20,6 +20,8 @@ disk:
   # Path to logs/traces directories. Files must be named .native or .native.zst
   logs_path: log_data
   traces_path: trace_data
+  # Set to true if the logs files on disk were exported with TimestampTime present.
+  has_timestamp_time: false
   # Blocks can be reused to reduce garbage in the program and improve throughput stability, but
   # ch-go has a bug where some columns aren't properly reset. I've hacked around this for now and so
   # you shouldn't notice it, but maybe I missed a detail when querying the data back.

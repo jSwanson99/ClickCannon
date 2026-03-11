@@ -36,6 +36,9 @@ type LogsSharedColumns struct {
 	// This is also why Reset should use decodeCols since it contains all columns.
 	decodeNames []string
 	decodeCols  []proto.Column
+
+	cachedResults proto.Results
+	cachedInput   proto.Input
 }
 
 func newLogsColumns(c *LogsSharedColumns) ([]string, []proto.Column) {
@@ -156,6 +159,15 @@ func NewLogsSharedColumns(hasTimestampTime bool) *LogsSharedColumns {
 		c.decodeNames, c.decodeCols = c.insertNames, c.insertCols
 	}
 
+	c.cachedResults = make(proto.Results, len(c.decodeNames))
+	for i := range c.decodeNames {
+		c.cachedResults[i] = proto.ResultColumn{Name: c.decodeNames[i], Data: c.decodeCols[i]}
+	}
+	c.cachedInput = make(proto.Input, len(c.insertNames))
+	for i := range c.insertNames {
+		c.cachedInput[i] = proto.InputColumn{Name: c.insertNames[i], Data: c.insertCols[i]}
+	}
+
 	return &c
 }
 
@@ -165,23 +177,9 @@ func (c *LogsSharedColumns) Reset() {
 	}
 }
 
-func (c *LogsSharedColumns) Results() proto.Results {
-	res := make(proto.Results, 0, len(c.decodeNames))
-	for i := range c.decodeNames {
-		res = append(res, proto.ResultColumn{Name: c.decodeNames[i], Data: c.decodeCols[i]})
-	}
+func (c *LogsSharedColumns) Results() proto.Results { return c.cachedResults }
 
-	return res
-}
-
-func (c *LogsSharedColumns) Input() proto.Input {
-	in := make(proto.Input, 0, len(c.insertNames))
-	for i := range c.insertNames {
-		in = append(in, proto.InputColumn{Name: c.insertNames[i], Data: c.insertCols[i]})
-	}
-
-	return in
-}
+func (c *LogsSharedColumns) Input() proto.Input { return c.cachedInput }
 
 func (c *LogsSharedColumns) UpdateDate() {
 	for i := range c.timestamp.Data {

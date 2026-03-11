@@ -32,6 +32,9 @@ type TracesSharedColumns struct {
 
 	Names []string
 	Cols  []proto.Column
+
+	cachedResults proto.Results
+	cachedInput   proto.Input
 }
 
 func NewTracesSharedColumns() *TracesSharedColumns {
@@ -118,6 +121,15 @@ func NewTracesSharedColumns() *TracesSharedColumns {
 		c.linksAttributes,
 	}
 
+	c.cachedResults = make(proto.Results, len(c.Names))
+	for i := range c.Names {
+		c.cachedResults[i] = proto.ResultColumn{Name: c.Names[i], Data: c.Cols[i]}
+	}
+	c.cachedInput = make(proto.Input, len(c.Names))
+	for i := range c.Names {
+		c.cachedInput[i] = proto.InputColumn{Name: c.Names[i], Data: c.Cols[i]}
+	}
+
 	return &c
 }
 
@@ -127,33 +139,9 @@ func (c *TracesSharedColumns) Reset() {
 	}
 }
 
-func (c *TracesSharedColumns) Results() proto.Results {
-	res := make(proto.Results, 0, len(c.Names))
-	for i := range c.Names {
-		col := proto.ResultColumn{
-			Name: c.Names[i],
-			Data: c.Cols[i],
-		}
+func (c *TracesSharedColumns) Results() proto.Results { return c.cachedResults }
 
-		res = append(res, col)
-	}
-
-	return res
-}
-
-func (c *TracesSharedColumns) Input() proto.Input {
-	in := make(proto.Input, 0, len(c.Names))
-	for i := range c.Names {
-		col := proto.InputColumn{
-			Name: c.Names[i],
-			Data: c.Cols[i],
-		}
-
-		in = append(in, col)
-	}
-
-	return in
-}
+func (c *TracesSharedColumns) Input() proto.Input { return c.cachedInput }
 
 func (c *TracesSharedColumns) UpdateDate() {
 	for i := range c.timestamp.Data {

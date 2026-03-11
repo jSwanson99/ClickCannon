@@ -3,10 +3,18 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 88,
+    "namespace": "default",
+    "uid": "ix3hSsI22fW6ykUv7KsKTJ9CE59cAXBbkd1Sb606oVAX",
+    "resourceVersion": "87",
+    "generation": 89,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
-    "annotations": {}
+    "annotations": {
+      "grafana.app/createdBy": "user:u000000001",
+      "grafana.app/updatedBy": "user:u000000001",
+      "grafana.app/updatedTimestamp": "2026-03-11T03:39:38Z",
+      "grafana.app/folder": ""
+    }
   },
   "spec": {
     "annotations": [
@@ -19,6 +27,9 @@
           "iconColor": "rgba(0, 211, 255, 1)",
           "name": "Annotations & Alerts",
           "query": {
+            "datasource": {
+              "name": "-- Grafana --"
+            },
             "group": "grafana",
             "kind": "DataQuery",
             "spec": {},
@@ -1792,7 +1803,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  value as \"blocks_retired_total\",\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('blocks_retired_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  (value - lagInFrame(value) OVER (ORDER BY timestamp)) as \"blocks_retired\",\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('blocks_retired_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -2921,8 +2932,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "CHCloud spencer-test",
+            "value": "cdp39twxzn4zka"
           },
           "hide": "dontHide",
           "includeAll": false,
@@ -2940,8 +2951,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "Insert Traces L - de3fe042 (8m ago)",
+            "value": "de3fe042-1cfd-11f1-a670-060f91b19e3d"
           },
           "definition": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20",
           "hide": "dontHide",
@@ -2973,8 +2984,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "active_inserters",
+            "value": "active_inserters"
           },
           "definition": "SELECT DISTINCT metric_name FROM otelspam.perf",
           "hide": "dontHide",
@@ -3006,8 +3017,8 @@
         "spec": {
           "allowCustomValue": false,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "1773201211988",
+            "value": "1773201211988"
           },
           "definition": "SELECT min(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
           "hide": "hideVariable",
@@ -3038,8 +3049,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "1773201747292",
+            "value": "1773201747292"
           },
           "definition": "SELECT max(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
           "hide": "hideVariable",

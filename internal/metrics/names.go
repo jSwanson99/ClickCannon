@@ -25,6 +25,10 @@ const (
 	BlockPoolCount    Name = "block_pool_count"
 	BlockPoolCapacity Name = "block_pool_capacity"
 	BlockQueueLength  Name = "block_queue_length"
+	// BlocksRetiredTotal is a monotonically increasing count of blocks retired over the
+	// program's lifetime. A retirement occurs when a reused block exceeds its configured
+	// use limit and is replaced with a fresh allocation to reclaim column slice memory.
+	BlocksRetiredTotal Name = "blocks_retired_total"
 
 	// Totals
 

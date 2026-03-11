@@ -40,6 +40,13 @@ disk:
   # you shouldn't notice it, but maybe I missed a detail when querying the data back.
   # Set this to false if you notice the inserted data has maps that have mismatched key/value pairs, or empty columns.
   reuse_blocks: true
+  # After how many uses a reused block is retired and replaced with a fresh allocation.
+  # Column slice backing arrays grow over time as blocks are filled and reset repeatedly.
+  # Retiring blocks periodically bounds this memory growth without sacrificing the
+  # throughput stability benefits of block reuse.
+  # Set to 0 to disable retirement (blocks live for the program's lifetime).
+  # Only applies when reuse_blocks is true.
+  block_retirement_uses: 100
   # Should the file queue be looped? (Consider the shift_timestamp setting. May cause uneven distribution of data.)
   # Also consider the thread count.
   # If there are more threads than files, the looped files will immediately go in the queue.

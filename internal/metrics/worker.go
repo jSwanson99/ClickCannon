@@ -131,6 +131,7 @@ func (w *Worker) Run(ctx context.Context) error {
 			w.SetMetric(BlockPoolCount, uint64(blockPoolCount))
 			w.SetMetric(BlockPoolCapacity, uint64(blockPoolCapacity))
 			w.SetMetric(BlockQueueLength, uint64(len(w.blockQueue)))
+			w.SetMetric(BlocksRetiredTotal, uint64(w.blockPool.TotalRetired()))
 
 			// this should be dynamically adjustable in the future, but for now we set it constantly
 			w.SetMetric(TargetBytesPerSecond, w.targetBytesPerSecond)
@@ -223,6 +224,7 @@ func (w *Worker) resetMetrics() {
 		case BlockPoolCount:
 		case BlockPoolCapacity:
 		case BlockQueueLength:
+		case BlocksRetiredTotal:
 		case ProgramHeapAllocBytes:
 		case ProgramSysBytes:
 		case ProgramNumGoroutines:

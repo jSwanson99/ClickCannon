@@ -12,6 +12,13 @@ type Config struct {
 
 	ReuseBlocks bool `yaml:"reuse_blocks"`
 
+	// BlockRetirementUses is the number of times a block can be acquired before it is retired
+	// and replaced with a fresh allocation. This bounds the memory consumed by column slice
+	// backing arrays that grow over time as blocks are filled and reset repeatedly.
+	// Set to 0 to disable retirement (blocks live for the program's lifetime).
+	// Only applies when reuse_blocks is true.
+	BlockRetirementUses int `yaml:"block_retirement_uses"`
+
 	Loop bool `yaml:"loop"`
 
 	// How many MiB decompressed bytes per second can be read from disk

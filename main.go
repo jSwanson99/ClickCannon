@@ -53,10 +53,6 @@ func main() {
 
 	blocksToAlloc := (cfg.Disk.Threads + cfg.Insert.Threads) * 2
 	insertQueue := make(chan block.SharedColumns, blocksToAlloc)
-	var (
-		blockPool block.Pool
-		err       error
-	)
 	var blockCreateFunc func() block.SharedColumns
 	if cfg.App.DataType == app.ConfigDataTypeLogs {
 		blockCreateFunc = func() block.SharedColumns {
@@ -68,17 +64,11 @@ func main() {
 		}
 	}
 
+	var blockPool block.Pool
 	if cfg.Disk.ReuseBlocks {
-		blockPool, err = block.NewStructPool[block.SharedColumns](blocksToAlloc, func() (block.SharedColumns, error) {
-			return blockCreateFunc(), nil
-		})
+		blockPool = block.NewBlockPool(blocksToAlloc, cfg.Disk.BlockRetirementUses, blockCreateFunc)
 	} else {
 		blockPool = block.NewGarbageBlockPool(blockCreateFunc)
-	}
-
-	if err != nil {
-		log.Error("failed to alloc blocks", "err", err)
-		return
 	}
 
 	terminate := make(chan os.Signal, 1)

@@ -53,8 +53,11 @@ type SpeedLimitedReader struct {
 }
 
 type SlidingWindow struct {
-	mu         sync.RWMutex
+	mu         sync.Mutex
 	entries    []windowEntry
+	head       int
+	tail       int
+	count      int
 	maxAge     time.Duration
 	totalBytes int64
 }
@@ -226,9 +229,11 @@ func (slr *SpeedLimitedReader) Reset(bytesPerSec uint64) {
 	slr.lastTokenFill = time.Now()
 }
 
+const windowCapacity = 1000
+
 func NewSlidingWindow(duration time.Duration) *SlidingWindow {
 	return &SlidingWindow{
-		entries: make([]windowEntry, 0, 1000),
+		entries: make([]windowEntry, windowCapacity),
 		maxAge:  duration,
 	}
 }
@@ -237,51 +242,46 @@ func (sw *SlidingWindow) Add(bytes int, timestamp time.Time) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	sw.entries = append(sw.entries, windowEntry{
-		timestamp: timestamp,
-		bytes:     bytes,
-	})
-	sw.totalBytes += int64(bytes)
-
 	sw.cleanOldEntries(timestamp)
+
+	if sw.count == len(sw.entries) {
+		sw.totalBytes -= int64(sw.entries[sw.head].bytes)
+		sw.head = (sw.head + 1) % len(sw.entries)
+		sw.count--
+	}
+
+	sw.entries[sw.tail] = windowEntry{timestamp: timestamp, bytes: bytes}
+	sw.tail = (sw.tail + 1) % len(sw.entries)
+	sw.count++
+	sw.totalBytes += int64(bytes)
 }
 
 func (sw *SlidingWindow) GetRate() float64 {
-	sw.mu.RLock()
-	defer sw.mu.RUnlock()
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
 
 	now := time.Now()
 	sw.cleanOldEntries(now)
 
-	if len(sw.entries) == 0 {
+	if sw.count == 0 {
 		return 0
 	}
 
-	oldest := sw.entries[0].timestamp
+	oldest := sw.entries[sw.head].timestamp
 	timeSpan := now.Sub(oldest).Seconds()
 	if timeSpan <= 0 {
 		return 0
 	}
 
-	var bytesInWindow int64
-	for _, entry := range sw.entries {
-		bytesInWindow += int64(entry.bytes)
-	}
-
-	return float64(bytesInWindow) / timeSpan
+	return float64(sw.totalBytes) / timeSpan
 }
 
 func (sw *SlidingWindow) cleanOldEntries(now time.Time) {
 	cutoff := now.Add(-sw.maxAge)
-
-	i := 0
-	for i < len(sw.entries) && sw.entries[i].timestamp.Before(cutoff) {
-		sw.totalBytes -= int64(sw.entries[i].bytes)
-		i++
-	}
-
-	if i > 0 {
-		sw.entries = sw.entries[i:]
+	for sw.count > 0 && sw.entries[sw.head].timestamp.Before(cutoff) {
+		sw.totalBytes -= int64(sw.entries[sw.head].bytes)
+		sw.head = (sw.head + 1) % len(sw.entries)
+		sw.count--
 	}
 }
 

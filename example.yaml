@@ -46,7 +46,7 @@ disk:
   # throughput stability benefits of block reuse.
   # Set to 0 to disable retirement (blocks live for the program's lifetime).
   # Only applies when reuse_blocks is true.
-  block_retirement_uses: 1000
+  block_retirement_uses: 100
   # Should the file queue be looped? (Consider the shift_timestamp setting. May cause uneven distribution of data.)
   # Also consider the thread count.
   # If there are more threads than files, the looped files will immediately go in the queue.

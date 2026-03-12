@@ -15,11 +15,15 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 )
 
+var errWorkerRetired = errors.New("worker retired")
+
 type worker struct {
 	id  int
 	log *slog.Logger
 
-	batchSize int
+	batchSize               int
+	workerRetirementBatches int
+	initialBatchCount       int
 
 	chConfig *ClickHouseConfig
 	table    string
@@ -44,11 +48,18 @@ func newWorker(
 	insertQueue <-chan block.SharedColumns,
 	metrics metrics.Store,
 ) *worker {
+	var initialBatchCount int
+	if config.WorkerRetirementBatches > 0 && config.Threads > 0 {
+		initialBatchCount = (id * config.WorkerRetirementBatches) / config.Threads
+	}
+
 	w := worker{
 		id:  id,
 		log: log.With("component", "insert_worker", "id", id),
 
-		batchSize: config.BatchSize,
+		batchSize:               config.BatchSize,
+		workerRetirementBatches: config.WorkerRetirementBatches,
+		initialBatchCount:       initialBatchCount,
 
 		nodeBalancer: nodeBalancer,
 
@@ -76,6 +87,8 @@ func (w *worker) Run(ctx context.Context) error {
 
 	insertBlock := w.blockCreateFunc()
 	insertInput := insertBlock.Input()
+
+	batchCount := w.initialBatchCount
 
 	for {
 		select {
@@ -185,6 +198,15 @@ func (w *worker) Run(ctx context.Context) error {
 			}
 			w.blockPool.Release(currentBlock)
 			currentBlock = nil
+		}
+
+		w.metrics.IncrementMetric(metrics.InsertBatchesPerSecond, 1)
+
+		batchCount++
+		if w.workerRetirementBatches > 0 && batchCount >= w.workerRetirementBatches {
+			w.metrics.IncrementMetric(metrics.InsertWorkersRetiredTotal, 1)
+			w.log.Debug("retiring worker", "batches", batchCount)
+			return errWorkerRetired
 		}
 	}
 

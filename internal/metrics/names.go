@@ -10,6 +10,7 @@ const (
 	ReadUncompressedBytesPerSecond Name = "read_uncompressed_bytes_per_second"
 	InsertRowsPerSecond            Name = "insert_rows_per_second"
 	InsertBytesPerSecond           Name = "insert_bytes_per_second"
+	InsertBatchesPerSecond         Name = "insert_batches_per_second"
 	UserQueriesPerSecond           Name = "user_queries_per_second"
 	FailedUserQueriesPerSecond     Name = "failed_user_queries_per_second"
 
@@ -29,6 +30,10 @@ const (
 	// program's lifetime. A retirement occurs when a reused block exceeds its configured
 	// use limit and is replaced with a fresh allocation to reclaim column slice memory.
 	BlocksRetiredTotal Name = "blocks_retired_total"
+	// InsertWorkersRetiredTotal is a monotonically increasing count of insert workers that
+	// have retired over the program's lifetime. Workers retire after a configured number of
+	// batches to reclaim ch-go encoder buffer memory.
+	InsertWorkersRetiredTotal Name = "insert_workers_retired_total"
 
 	// Totals
 

@@ -77,6 +77,12 @@ insert:
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
   # an exact limit.
   batch_size: 100000
+  # How many batches a worker sends before retiring and reconnecting. The ch-go encoder
+  # accumulates buffer allocations over time; retiring workers periodically bounds this growth.
+  # Workers are staggered across the window by ID so they don't all restart simultaneously
+  # (e.g. with 4 workers and retirement=100, they retire at batches 0, 25, 50, 75 respectively).
+  # Set to 0 to disable. This value should be based on your configured throughput/batches estimate.
+  worker_retirement_batches: 0
   # When enabled, connections are balanced evenly across nodes in the cluster.
   # A brute force method is used, which may spam connections until it gets the correct IP.
   balance_nodes: false

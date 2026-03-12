@@ -104,6 +104,8 @@ func (s *Scheduler) runWorker(ctx context.Context, id int) {
 			return
 		case errors.Is(err, context.Canceled):
 			return
+		case errors.Is(err, errWorkerRetired):
+			backoff = baseBackoff
 		default:
 			s.log.Warn("insert worker failed, restarting", "worker_id", id, "err", err, "backoff", backoff)
 			select {

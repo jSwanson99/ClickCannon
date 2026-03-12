@@ -225,6 +225,7 @@ func (w *Worker) resetMetrics() {
 		case BlockPoolCapacity:
 		case BlockQueueLength:
 		case BlocksRetiredTotal:
+		case InsertWorkersRetiredTotal:
 		case ProgramHeapAllocBytes:
 		case ProgramSysBytes:
 		case ProgramNumGoroutines:

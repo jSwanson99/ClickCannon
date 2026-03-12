@@ -16,6 +16,11 @@ type Config struct {
 	// After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not
 	// an exact limit.
 	BatchSize int `yaml:"batch_size"`
+	// How many batches a worker sends before retiring and reconnecting. The ch-go encoder accumulates
+	// buffer allocations over time; retiring workers periodically bounds this memory growth.
+	// Workers are staggered across the retirement window using their ID so they don't all restart at once.
+	// Set to 0 to disable retirement.
+	WorkerRetirementBatches int `yaml:"worker_retirement_batches"`
 
 	// Distributes the connections across the cluster nodes.
 	// Requires multiple reconnects for hosts hidden behind a load balancer.
@@ -75,6 +80,10 @@ func (c Config) Validate() error {
 
 	if c.BatchSize < 1 {
 		return errors.New("must set batch_size to a value greater than zero")
+	}
+
+	if c.WorkerRetirementBatches < 0 {
+		return errors.New("worker_retirement_batches must be >= 0")
 	}
 
 	if err := c.ClickHouse.Validate(); err != nil {

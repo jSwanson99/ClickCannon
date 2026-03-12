@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 91,
+    "generation": 92,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -1450,7 +1450,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_heap_alloc_bytes', 'program_sys_bytes', 'program_next_gc_bytes')\n  AND $__timeFilter(timestamp)\nGROUP BY metric_name, timestamp\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL 1 SECOND) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_heap_alloc_bytes', 'program_sys_bytes', 'program_next_gc_bytes')\n  AND $__timeFilter(timestamp)\nGROUP BY metric_name, timestamp\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -3185,7 +3185,7 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-30m",
+      "from": "now-1h",
       "hideTimepicker": false,
       "timezone": "utc",
       "to": "now"

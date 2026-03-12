@@ -80,7 +80,7 @@ insert:
   # How many batches a worker sends before retiring and reconnecting. The ch-go encoder
   # accumulates buffer allocations over time; retiring workers periodically bounds this growth.
   # Workers are staggered across the window by ID so they don't all restart simultaneously
-  # (e.g. with 4 workers and retirement=100, they retire at batches 0, 25, 50, 75 respectively).
+  # (e.g. with 4 workers and retirement=100, they retire at absolute batch 100, 125, 150, 175 respectively).
   # Set to 0 to disable. This value should be based on your configured throughput/batches estimate.
   worker_retirement_batches: 0
   # When enabled, connections are balanced evenly across nodes in the cluster.

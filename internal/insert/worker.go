@@ -203,9 +203,13 @@ func (w *worker) Run(ctx context.Context) error {
 		w.metrics.IncrementMetric(metrics.InsertBatchesPerSecond, 1)
 
 		batchCount++
-		if w.workerRetirementBatches > 0 && batchCount >= w.workerRetirementBatches {
+		if w.workerRetirementBatches > 0 && batchCount-w.initialBatchCount >= w.workerRetirementBatches {
 			w.metrics.IncrementMetric(metrics.InsertWorkersRetiredTotal, 1)
-			w.log.Debug("retiring worker", "batches", batchCount)
+			w.log.Debug("retiring worker",
+				"batches_sent", batchCount-w.initialBatchCount,
+				"retirement_limit", w.workerRetirementBatches,
+				"initial_offset", w.initialBatchCount,
+			)
 			return errWorkerRetired
 		}
 	}

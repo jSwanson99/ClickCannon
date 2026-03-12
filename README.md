@@ -79,7 +79,7 @@ Set to `0` to disable retirement (blocks live for the program's lifetime, origin
 
 The ch-go encoder inside each insert worker accumulates buffer allocations over time as it encodes blocks. These buffers grow to fit the largest block seen and are never shrunk. Over many batches this causes each worker's memory footprint to drift upward.
 
-`worker_retirement_batches` sets how many batches a worker sends before it exits and is replaced by a fresh one. Workers are staggered so they don't all restart simultaneously — with 4 workers and a retirement of 100, they retire at batch offsets 0, 25, 50, and 75 respectively.
+`worker_retirement_batches` sets how many batches a worker sends before it exits and is replaced by a fresh one. Workers are staggered so they don't all restart simultaneously: each worker i gets an initial batch offset of `(i * retirement_batches) / threads`. It then counts from that offset and retires after sending exactly `retirement_batches` batches, so every worker sends the same number regardless of its position. The offsets spread retirements evenly across the retirement window, and because the offset is recalculated from the stable worker ID on each restart, the stagger is maintained for the life of the program.
 
 **Deriving a value:** Estimate your target throughput in batches per second (throughput / `insert.batch_size`), then decide how often you want workers to recycle. For a run targeting 1M rows/s with `batch_size=100000`, that's ~10 batches/s; retiring every 100 batches means a recycle roughly every 10 seconds per worker. Lower values reduce peak memory per worker but add reconnection overhead. Higher values allow more drift.
 

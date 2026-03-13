@@ -130,6 +130,12 @@ user:
   database: otel
   # The table parameter, available in the SQL as {table:Identifier}
   table: otel_traces
+
+  # When does your dataset start? (only required for time_anchor=dataset_random)
+  dataset_unix_start: 1758585600
+  # When does your dataset end? (only required for time_anchor=dataset_end|dataset_random)
+  dataset_unix_end: 1758631499
+
   # An array of user workflows. For now, we only use 1 at a time.
   workflows:
       # Workflow type: must be "queries", in the future I will re-add the HAR file replay.
@@ -150,10 +156,6 @@ user:
       #   dataset_random: random point within [dataset_start, dataset_end] per query,
       #                   maximizes cache thrashing on fixed datasets.
       time_anchor: now
-      # When does your dataset start? (only required for time_anchor=dataset_random)
-      dataset_unix_start: 1758585600
-      # When does your dataset end? (only required for time_anchor=dataset_end|dataset_random)
-      dataset_unix_end: 1758631499
 
       # Applied to all queries unless overridden. Set type=none on a query to opt out.
       default_time_range:

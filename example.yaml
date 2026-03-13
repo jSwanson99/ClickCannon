@@ -112,6 +112,11 @@ metrics:
   metrics_table: perf
   # Controls whether the metrics database/tables are created on startup
   create_schema: true
+  # Optional key-value attributes attached to the run record and every metric point.
+  # Useful for tagging runs by environment, team, hardware, etc.
+  attributes:
+    env: "dev"
+    foo: "bar"
 
 # Settings related to user/query benchmarking
 user:

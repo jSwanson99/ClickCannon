@@ -3,12 +3,13 @@ package metrics
 import "errors"
 
 type Config struct {
-	Enabled       bool   `yaml:"enabled"`
-	ClickHouseDSN string `yaml:"clickhouse_dsn"`
-	Database      string `yaml:"database"`
-	RunTable      string `yaml:"run_table"`
-	MetricsTable  string `yaml:"metrics_table"`
-	CreateSchema  bool   `yaml:"create_schema"`
+	Enabled       bool              `yaml:"enabled"`
+	ClickHouseDSN string            `yaml:"clickhouse_dsn"`
+	Database      string            `yaml:"database"`
+	RunTable      string            `yaml:"run_table"`
+	MetricsTable  string            `yaml:"metrics_table"`
+	CreateSchema  bool              `yaml:"create_schema"`
+	Attributes    map[string]string `yaml:"attributes"`
 }
 
 func (c Config) Validate() error {

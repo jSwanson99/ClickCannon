@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.3.0] — 2026-03-12
+## v0.3.0
 
 ### Breaking Changes
 
@@ -46,7 +46,7 @@ Update your config files accordingly.
 
 ---
 
-## [v0.2.0] — 2026-03-03
+## v0.2.0
 
 A significant restructuring of internals focused on stability, config ergonomics, improved logging, and a more coherent code structure. This version also expanded query and user worker capabilities substantially.
 
@@ -86,7 +86,7 @@ A significant restructuring of internals focused on stability, config ergonomics
 
 ---
 
-## [v0.1.0] — 2026-02-20
+## v0.1.0
 
 Initial alpha release. Core pipeline is functional: reads OTel data from disk, rewrites timestamps, and inserts into ClickHouse at a configurable throughput. Not intended for production use — config format and behavior may change significantly between versions.
 

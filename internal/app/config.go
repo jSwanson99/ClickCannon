@@ -30,11 +30,7 @@ type Config struct {
 		LogToConsole bool   `yaml:"log_to_console"`
 		LogLevel     string `yaml:"log_level"`
 		DataType     string `yaml:"data_type"`
-		// TODO: disk might need these for time shift
-		//DatasetUnixStart uint64 `yaml:"dataset_unix_start"`
-		//DatasetUnixEnd   uint64 `yaml:"dataset_unix_end"`
-		//DatasetRowCount  uint64 `yaml:"dataset_row_count"`
-		Seed string `yaml:"seed"`
+		Seed         string `yaml:"seed"`
 	} `yaml:"app"`
 
 	Pprof   PprofConfig    `yaml:"pprof"`

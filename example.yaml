@@ -165,6 +165,11 @@ user:
         min: 15m
         max: 4h
 
+      # ClickHouse settings applied to all queries (including preflight) in this workflow.
+      # These can be overridden per-query
+      default_settings:
+        max_execution_time: "60"
+
       # Controls how often the default_time_range is resampled.
       #   per_query: new time range on every query execution
       #   per_loop:  sample once at the start of each pass through the query list (when random=false)
@@ -177,9 +182,9 @@ user:
             FROM {database:Identifier}.{table:Identifier}
             WHERE Timestamp >= {time_start:DateTime64(3)}
               AND Timestamp <= {time_end:DateTime64(3)}
-          # Optional query settings
+          # Optional per-query settings override
           settings:
-            max_execution_time: 60
+            max_execution_time: "30"
           # Optional: perf targets, stored as metadata on each latency metric.
           perf:
             # You can define all or none of these, but it is limited to p50, p90, p95, and p99.

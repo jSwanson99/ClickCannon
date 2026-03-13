@@ -79,12 +79,13 @@ type WorkflowConfig interface {
 }
 
 type QueriesWorkflowConfig struct {
-	Random           bool             `yaml:"random"`
-	ThinkTime        ThinkTimeConfig  `yaml:"think_time"`
-	TimeAnchor       TimeAnchor       `yaml:"time_anchor"`
-	DefaultTimeRange *TimeRangeConfig `yaml:"default_time_range"`
-	TimeRangeCadence TimeRangeCadence `yaml:"time_range_cadence"`
-	Queries          []QueryConfig    `yaml:"queries"`
+	Random           bool              `yaml:"random"`
+	ThinkTime        ThinkTimeConfig   `yaml:"think_time"`
+	TimeAnchor       TimeAnchor        `yaml:"time_anchor"`
+	DefaultTimeRange *TimeRangeConfig  `yaml:"default_time_range"`
+	DefaultSettings  map[string]string `yaml:"default_settings"`
+	TimeRangeCadence TimeRangeCadence  `yaml:"time_range_cadence"`
+	Queries          []QueryConfig     `yaml:"queries"`
 }
 
 func (QueriesWorkflowConfig) workflowConfig() {}

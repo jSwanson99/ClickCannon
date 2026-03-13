@@ -102,7 +102,7 @@ func (b *QueriesWorkflow) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 		QueryIndex: queryIndex,
 		Name:       q.Name,
 		SQL:        TryAppendFormatNull(q.SQL),
-		Settings:   q.Settings,
+		Settings:   mergeSettings(b.cfg.DefaultSettings, q.Settings),
 		Params:     params.Params(),
 		TimeRange:  resolvedDuration,
 		Perf:       q.Perf,
@@ -149,6 +149,23 @@ func (b *QueriesWorkflow) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
 	}
 
 	return b.sampledTimeRange
+}
+
+func mergeSettings(defaults, overrides map[string]string) map[string]string {
+	if len(defaults) == 0 {
+		return overrides
+	}
+
+	merged := make(map[string]string, len(defaults)+len(overrides))
+	for k, v := range defaults {
+		merged[k] = v
+	}
+
+	for k, v := range overrides {
+		merged[k] = v
+	}
+
+	return merged
 }
 
 func (b *QueriesWorkflow) nextQueryConfig() (int, *QueryConfig) {

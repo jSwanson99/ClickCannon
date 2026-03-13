@@ -177,6 +177,32 @@ user:
       #   per_loop:  sample once at the start of each pass through the query list (when random=false)
       time_range_cadence: per_query
 
+      # Optional: constant variables available to all queries and preflight queries in this workflow.
+      # Available in SQL as {VarName:String}. Query-level vars override these.
+      vars:
+        Example: "value"
+        Env: "prod"
+
+      # Controls when workload-level preflight_queries are (re-)executed.
+      #   once:      run once at startup, result cached for the entire test (default)
+      #   per_loop:  re-run at the start of each pass through the query list (random=false only)
+      #   per_query: re-run before every query execution
+      preflight_cadence: once
+
+      # Optional: preflight queries that run before queries in this workflow.
+      # Results are bound as variables and available to subsequent preflight queries and the main query.
+      # Query-level preflight_queries run after these and can override the same binds.
+      # Each preflight query must return exactly 1 row; all columns must be String type.
+      # The same time range context ({time_start}, {time_end}) is available.
+      preflight_queries:
+        - sql: |
+            SELECT max(Timestamp) AS DatasetMaxTS
+            FROM {database:Identifier}.{table:Identifier}
+          binds: [DatasetMaxTS]
+          # Optional settings override
+          settings:
+            max_execution_time: "30"
+
       queries:
         - name: "Basic count — inherits default_time_range"
           sql: |
@@ -230,27 +256,36 @@ user:
             min:  5m
             max:  24h
 
-        - name: "Preflight query — binds a value before executing the main query"
-          # The preflight_query latency does not count against the main query.
-          # It fetches one or more string values and binds them as named parameters.
-          # The same time range context is available to the preflight query.
-          # Make sure this only returns 1 row, and that all columns are of String type.
-          # The names are bound in order of the columns returned.
-          # You may need to do some casting to fit your values in the main query since these are all Strings.
-          preflight_query:
-            sql: |
-              SELECT TraceId, SpanName
-              FROM {database:Identifier}.{table:Identifier}
-              WHERE Timestamp >= {time_start:DateTime64(3)}
-                AND Timestamp <= {time_end:DateTime64(3)}
-              ORDER BY Timestamp ASC
-              LIMIT 1
-            # Optional query settings
-            settings:
-              max_execution_time: 60
-            binds:
-              - TraceId  # available as {TraceId:String} in the main query
-              - SpanName  # available as {SpanName:String} in the main query
+        - name: "Preflight queries — bind values before executing the main query"
+          # preflight_queries run before the main query; their latency is not counted.
+          # Each must return exactly 1 row; all columns must be String type.
+          # The same time range context ({time_start}, {time_end}) is available.
+          # Queries run in order — later ones can reference binds from earlier ones.
+          # You may need to cast values to fit the type expected in the main query.
+          # Optional query-level vars set constant binds before preflight_queries run.
+          vars:
+            FallbackTraceId: "00000000000000000000000000000000"
+          preflight_queries:
+            - sql: |
+                SELECT TraceId, SpanName
+                FROM {database:Identifier}.{table:Identifier}
+                WHERE Timestamp >= {time_start:DateTime64(3)}
+                  AND Timestamp <= {time_end:DateTime64(3)}
+                ORDER BY Timestamp ASC
+                LIMIT 1
+              # Optional settings override
+              settings:
+                max_execution_time: "60"
+              binds:
+                - TraceId   # available as {TraceId:String} in subsequent queries and main query
+                - SpanName  # available as {SpanName:String}
+            - sql: |
+                SELECT ServiceName
+                FROM {database:Identifier}.{table:Identifier}
+                WHERE TraceId = {TraceId:String}
+                LIMIT 1
+              binds:
+                - ServiceName  # available as {ServiceName:String} in the main query
           sql: |
             SELECT *
             FROM {database:Identifier}.{table:Identifier}

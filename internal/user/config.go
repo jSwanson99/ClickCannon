@@ -79,13 +79,16 @@ type WorkflowConfig interface {
 }
 
 type QueriesWorkflowConfig struct {
-	Random           bool              `yaml:"random"`
-	ThinkTime        ThinkTimeConfig   `yaml:"think_time"`
-	TimeAnchor       TimeAnchor        `yaml:"time_anchor"`
-	DefaultTimeRange *TimeRangeConfig  `yaml:"default_time_range"`
-	DefaultSettings  map[string]string `yaml:"default_settings"`
-	TimeRangeCadence TimeRangeCadence  `yaml:"time_range_cadence"`
-	Queries          []QueryConfig     `yaml:"queries"`
+	Random           bool                   `yaml:"random"`
+	ThinkTime        ThinkTimeConfig        `yaml:"think_time"`
+	TimeAnchor       TimeAnchor             `yaml:"time_anchor"`
+	DefaultTimeRange *TimeRangeConfig       `yaml:"default_time_range"`
+	DefaultSettings  map[string]string      `yaml:"default_settings"`
+	TimeRangeCadence  TimeRangeCadence        `yaml:"time_range_cadence"`
+	Vars              map[string]string       `yaml:"vars"`
+	PreflightQueries  []PreflightQueryConfig  `yaml:"preflight_queries"`
+	PreflightCadence  WorkflowPreflightCadence `yaml:"preflight_cadence"`
+	Queries          []QueryConfig          `yaml:"queries"`
 }
 
 func (QueriesWorkflowConfig) workflowConfig() {}
@@ -111,6 +114,29 @@ func (c QueriesWorkflowConfig) Validate(userCfg Config) error {
 	}
 	if c.TimeRangeCadence == TimeRangeCadencePerLoop && c.Random {
 		return fmt.Errorf("time_range_cadence cannot be %q when random is %t", c.TimeRangeCadence, c.Random)
+	}
+
+	if c.PreflightCadence == "" {
+		c.PreflightCadence = WorkflowPreflightCadenceOnce
+	}
+	if c.PreflightCadence != WorkflowPreflightCadenceOnce &&
+		c.PreflightCadence != WorkflowPreflightCadencePerLoop &&
+		c.PreflightCadence != WorkflowPreflightCadencePerQuery {
+		return fmt.Errorf("preflight_cadence must be one of: %s, %s, %s",
+			WorkflowPreflightCadenceOnce, WorkflowPreflightCadencePerLoop, WorkflowPreflightCadencePerQuery)
+	}
+	if c.PreflightCadence == WorkflowPreflightCadencePerLoop && c.Random {
+		return fmt.Errorf("preflight_cadence cannot be %q when random is %t", c.PreflightCadence, c.Random)
+	}
+
+	if err := validateVars(c.Vars); err != nil {
+		return fmt.Errorf("vars: %w", err)
+	}
+
+	for i, pf := range c.PreflightQueries {
+		if err := pf.Validate(); err != nil {
+			return fmt.Errorf("preflight_queries[%d]: %w", i, err)
+		}
 	}
 
 	if len(c.Queries) == 0 {
@@ -159,12 +185,13 @@ func (c ThinkTimeConfig) Validate() error {
 }
 
 type QueryConfig struct {
-	Name           string                `yaml:"name"`
-	SQL            string                `yaml:"sql"`
-	Perf           *PerfConfig           `yaml:"perf"`
-	TimeRange      *TimeRangeConfig      `yaml:"time_range"`
-	PreflightQuery *PreflightQueryConfig `yaml:"preflight_query"`
-	Settings       map[string]string     `yaml:"settings"`
+	Name             string                 `yaml:"name"`
+	SQL              string                 `yaml:"sql"`
+	Perf             *PerfConfig            `yaml:"perf"`
+	TimeRange        *TimeRangeConfig       `yaml:"time_range"`
+	Vars             map[string]string      `yaml:"vars"`
+	PreflightQueries []PreflightQueryConfig `yaml:"preflight_queries"`
+	Settings         map[string]string      `yaml:"settings"`
 }
 
 func (c QueryConfig) Validate() error {
@@ -176,9 +203,13 @@ func (c QueryConfig) Validate() error {
 		return err
 	}
 
-	if c.PreflightQuery != nil {
-		if err := c.PreflightQuery.Validate(); err != nil {
-			return fmt.Errorf("preflight_query: %w", err)
+	if err := validateVars(c.Vars); err != nil {
+		return fmt.Errorf("vars: %w", err)
+	}
+
+	for i, pf := range c.PreflightQueries {
+		if err := pf.Validate(); err != nil {
+			return fmt.Errorf("preflight_queries[%d]: %w", i, err)
 		}
 	}
 
@@ -188,6 +219,15 @@ func (c QueryConfig) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+func validateVars(vars map[string]string) error {
+	for k := range vars {
+		if strings.TrimSpace(k) == "" {
+			return errors.New("var key must not be empty")
+		}
+	}
 	return nil
 }
 
@@ -304,4 +344,15 @@ type TimeRangeCadence string
 const (
 	TimeRangeCadencePerQuery TimeRangeCadence = "per_query"
 	TimeRangeCadencePerLoop  TimeRangeCadence = "per_loop"
+)
+
+type WorkflowPreflightCadence string
+
+const (
+	// WorkflowPreflightCadenceOnce runs workload-level preflight queries once at startup and caches the result.
+	WorkflowPreflightCadenceOnce WorkflowPreflightCadence = "once"
+	// WorkflowPreflightCadencePerLoop re-runs at the start of each pass through the query list (random=false only).
+	WorkflowPreflightCadencePerLoop WorkflowPreflightCadence = "per_loop"
+	// WorkflowPreflightCadencePerQuery re-runs before every query execution.
+	WorkflowPreflightCadencePerQuery WorkflowPreflightCadence = "per_query"
 )

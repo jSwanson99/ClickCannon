@@ -37,7 +37,9 @@ type QueriesWorkflow struct {
 	datasetStart time.Time
 	datasetEnd   time.Time
 
-	sampledTimeRange *ResolvedTimeRange
+	sampledTimeRange    *ResolvedTimeRange
+	workflowBinds       map[string]string
+	workflowBindsCached bool
 }
 
 func NewQueriesWorkflow(log *slog.Logger, userCfg *Config, name string, cfg *QueriesWorkflowConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) *QueriesWorkflow {
@@ -89,12 +91,23 @@ func (b *QueriesWorkflow) NextQuery(ctx context.Context) (*ExecutableQuery, erro
 		resolvedDuration = resolved.End.Sub(resolved.Start)
 	}
 
-	if q.PreflightQuery != nil {
-		binds, err := b.queryRunner.ExecPreflight(ctx, q.PreflightQuery.Binds, q.PreflightQuery.SQL, q.PreflightQuery.Settings, params.Params())
-		if err != nil {
-			return nil, fmt.Errorf("preflight query for query (index=%d, name=%q) failed: %w", queryIndex, q.Name, err)
-		}
+	workloadBinds, err := b.getWorkloadBinds(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("workflow preflight_queries for query (index=%d, name=%q): %w", queryIndex, q.Name, err)
+	}
+	for k, v := range workloadBinds {
+		params.Preflight[k] = v
+	}
 
+	for k, v := range q.Vars {
+		params.Preflight[k] = v
+	}
+
+	if len(q.PreflightQueries) > 0 {
+		binds, err := b.execPreflights(ctx, params, q.PreflightQueries)
+		if err != nil {
+			return nil, fmt.Errorf("preflight_queries for query (index=%d, name=%q): %w", queryIndex, q.Name, err)
+		}
 		params.Preflight = binds
 	}
 
@@ -151,6 +164,57 @@ func (b *QueriesWorkflow) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
 	return b.sampledTimeRange
 }
 
+// getWorkloadBinds returns the workload-level vars and preflight query results, using the
+// configured preflight_cadence to decide whether to run fresh or return a cached result.
+func (b *QueriesWorkflow) getWorkloadBinds(ctx context.Context, params QueryParams) (map[string]string, error) {
+	if b.workflowBindsCached && b.cfg.PreflightCadence != WorkflowPreflightCadencePerQuery {
+		return b.workflowBinds, nil
+	}
+
+	binds := make(map[string]string, len(b.cfg.Vars)+len(b.cfg.PreflightQueries))
+	for k, v := range b.cfg.Vars {
+		binds[k] = v
+	}
+
+	if len(b.cfg.PreflightQueries) > 0 {
+		params.Preflight = binds
+		var err error
+		binds, err = b.execPreflights(ctx, params, b.cfg.PreflightQueries)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if b.cfg.PreflightCadence != WorkflowPreflightCadencePerQuery {
+		b.workflowBinds = binds
+		b.workflowBindsCached = true
+	}
+
+	return binds, nil
+}
+
+// execPreflights runs preflight queries in sequence, each receiving all binds accumulated so far.
+// Returns the full merged bind map (input binds + new results).
+func (b *QueriesWorkflow) execPreflights(ctx context.Context, params QueryParams, preflights []PreflightQueryConfig) (map[string]string, error) {
+	binds := make(map[string]string, len(params.Preflight)+len(preflights))
+	for k, v := range params.Preflight {
+		binds[k] = v
+	}
+
+	for i, pf := range preflights {
+		params.Preflight = binds
+		result, err := b.queryRunner.ExecPreflight(ctx, pf.Binds, pf.SQL, pf.Settings, params.Params())
+		if err != nil {
+			return nil, fmt.Errorf("preflight_queries[%d]: %w", i, err)
+		}
+		for k, v := range result {
+			binds[k] = v
+		}
+	}
+
+	return binds, nil
+}
+
 func mergeSettings(defaults, overrides map[string]string) map[string]string {
 	if len(defaults) == 0 {
 		return overrides
@@ -181,6 +245,9 @@ func (b *QueriesWorkflow) nextQueryConfig() (int, *QueryConfig) {
 
 	if loopWrapped && b.cfg.TimeRangeCadence == TimeRangeCadencePerLoop {
 		b.sampledTimeRange = nil
+	}
+	if loopWrapped && b.cfg.PreflightCadence == WorkflowPreflightCadencePerLoop {
+		b.workflowBindsCached = false
 	}
 
 	q := &queries[queryIndex]

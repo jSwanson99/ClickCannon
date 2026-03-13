@@ -4,7 +4,10 @@
 
 ### Breaking Changes
 
-- **Renamed "behaviors" to "workflows"** — The `behaviors` key in user config has been renamed to `workflows`. Update your config files accordingly.
+- **Renamed "behaviors" to "workflows"** — The `behaviors` key in user config has been renamed to `workflows`.
+- **Multiple preflight queries** — `preflight_query` was replaced with `preflight_queries` and now accepts one or more queries per workflow or per query.
+ 
+Update your config files accordingly.
 
 ### New Features
 

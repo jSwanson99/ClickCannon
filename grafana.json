@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 99,
+    "generation": 100,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -461,11 +461,11 @@
                       },
                       {
                         "color": "#EAB839",
-                        "value": 500000
+                        "value": 1500000
                       },
                       {
                         "color": "red",
-                        "value": 1500000
+                        "value": 5000000
                       },
                       {
                         "color": "dark-red",
@@ -3155,7 +3155,7 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-24h",
+      "from": "now-15m",
       "hideTimepicker": false,
       "timezone": "utc",
       "to": "now"

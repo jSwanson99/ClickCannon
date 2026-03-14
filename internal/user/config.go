@@ -302,6 +302,11 @@ type TimeRangeConfig struct {
 
 	// Exponential / LogNormal
 	Mean time.Duration `yaml:"mean"`
+
+	// LogNormal only. Controls spread and tail weight.
+	// Higher values produce a heavier right tail and more variance.
+	// Defaults to 0.5 when unset. Typical range: 0.3–1.5.
+	Sigma float64 `yaml:"sigma"`
 }
 
 func (c TimeRangeConfig) Validate() error {
@@ -324,13 +329,25 @@ func (c TimeRangeConfig) Validate() error {
 		if c.Max < c.Min {
 			return errors.New("uniform time_range max must be >= min")
 		}
-	case TimeRangeExponential, TimeRangeLogNormal:
+	case TimeRangeExponential:
 		if c.Mean <= 0 {
 			return fmt.Errorf("%s time_range requires a positive mean", c.Type)
 		}
 
 		if c.Min > 0 && c.Max > 0 && c.Max < c.Min {
 			return fmt.Errorf("%s time_range max must be >= min", c.Type)
+		}
+	case TimeRangeLogNormal:
+		if c.Mean <= 0 {
+			return fmt.Errorf("%s time_range requires a positive mean", c.Type)
+		}
+
+		if c.Min > 0 && c.Max > 0 && c.Max < c.Min {
+			return fmt.Errorf("%s time_range max must be >= min", c.Type)
+		}
+
+		if c.Sigma < 0 {
+			return errors.New("log_normal time_range sigma must be >= 0 (0 uses default of 0.5)")
 		}
 	default:
 		return fmt.Errorf("unknown time_range type %q", c.Type)

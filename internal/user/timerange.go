@@ -16,7 +16,7 @@ func (c *TimeRangeConfig) Resolve(anchor time.Time, rng *rand.Rand) (ResolvedTim
 		return ResolvedTimeRange{}, false
 	}
 
-	lookback := c.sampleLookback(rng)
+	lookback := c.SampleLookback(rng)
 	start := anchor.Add(-lookback)
 	end := anchor
 
@@ -31,7 +31,7 @@ func (c *TimeRangeConfig) Resolve(anchor time.Time, rng *rand.Rand) (ResolvedTim
 	}, true
 }
 
-func (c *TimeRangeConfig) sampleLookback(rng *rand.Rand) time.Duration {
+func (c *TimeRangeConfig) SampleLookback(rng *rand.Rand) time.Duration {
 	switch c.Type {
 	case TimeRangeFixed:
 		return c.Lookback
@@ -46,7 +46,11 @@ func (c *TimeRangeConfig) sampleLookback(rng *rand.Rand) time.Duration {
 		return clampDuration(sample, c.Min, c.Max)
 
 	case TimeRangeLogNormal:
-		const sigma = 0.5
+		sigma := c.Sigma
+		if sigma == 0 {
+			sigma = 0.5
+		}
+
 		mu := math.Log(float64(c.Mean)) - (sigma*sigma)/2
 		sample := time.Duration(math.Exp(mu + sigma*rng.NormFloat64()))
 		return clampDuration(sample, c.Min, c.Max)

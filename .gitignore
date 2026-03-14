@@ -31,11 +31,13 @@ go.work.sum
 .idea/
 .vscode/
 
-otelspam
+/otelspam
+/plot-timerange
 
 log_data/*native*
 trace_data/*native*
 *.yaml
+*.csv
 !example.yaml
 *.har
 *.log

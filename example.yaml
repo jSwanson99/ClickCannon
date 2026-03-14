@@ -255,6 +255,8 @@ user:
             mean: 2h
             min:  5m
             max:  24h
+            # sigma controls spread and tail weight. Default: 0.5.
+            sigma: 0.5
 
         - name: "Preflight queries — bind values before executing the main query"
           # preflight_queries run before the main query; their latency is not counted.

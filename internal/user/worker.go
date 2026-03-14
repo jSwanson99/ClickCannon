@@ -87,7 +87,7 @@ func (w *Worker) Run(ctx context.Context) error {
 			w.metrics.AddMetricPointWithAttributes(metrics.QueryLatencyMicros, uint64(result.Duration.Microseconds()), attr)
 			w.metrics.IncrementMetric(metrics.UserQueriesPerSecond, 1)
 
-			w.log.Debug("ran query", "name", q.Name, "query_index", result.Query.QueryIndex, "latency", result.Duration)
+			w.log.Debug("ran query", "name", q.Name, "query_index", result.Query.QueryIndex, "latency", result.Duration, "time_range", result.Query.TimeRange.String(), "time_range_seconds", int(result.Query.TimeRange.Seconds()))
 		}
 
 		w.think(ctx)

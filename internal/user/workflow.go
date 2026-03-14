@@ -158,6 +158,8 @@ func (b *QueriesWorkflow) resolveTimeRange(q *QueryConfig) *ResolvedTimeRange {
 			return nil
 		}
 
+		trDuration := resolved.End.Sub(resolved.Start)
+		b.log.Debug("resolved time range", "time_range", trDuration.String(), "time_range_seconds", int(trDuration.Seconds()))
 		b.sampledTimeRange = &resolved
 	}
 

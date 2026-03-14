@@ -119,8 +119,6 @@ func (w *Worker) Run(ctx context.Context) error {
 	w.log.Info("started")
 	defer w.log.Info("stopped")
 
-	go w.processMetrics(ctx)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -138,6 +136,9 @@ func (w *Worker) Run(ctx context.Context) error {
 
 			w.collectRuntimeMetrics()
 
+			// Drain the queue before pushing so no entries are lost between push and reset
+			w.drainMetricsQueue()
+
 			if w.insertSQL != "" {
 				err := w.pushMetrics(ctx)
 				if err != nil {
@@ -151,13 +152,13 @@ func (w *Worker) Run(ctx context.Context) error {
 	}
 }
 
-func (w *Worker) processMetrics(ctx context.Context) {
+func (w *Worker) drainMetricsQueue() {
 	for {
 		select {
-		case <-ctx.Done():
-			return
 		case m := <-w.metricsQueue:
 			w.applyMetricEntry(m)
+		default:
+			return
 		}
 	}
 }

@@ -23,6 +23,7 @@ type Worker struct {
 
 	dataType             string
 	targetBytesPerSecond uint64
+	configAttributes     map[string]string
 
 	blockPool  block.Pool
 	blockQueue chan block.SharedColumns
@@ -39,6 +40,7 @@ func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytes
 		runID:                runID,
 		dataType:             dataType,
 		targetBytesPerSecond: targetBytesPerSecond,
+		configAttributes:     runAttr,
 
 		blockPool:  blockPool,
 		blockQueue: blockQueue,
@@ -259,7 +261,7 @@ func (w *Worker) pushMetrics(ctx context.Context) error {
 	w.mu.Lock()
 	now := time.Now()
 	for name, value := range w.metrics {
-		err = batch.Append(w.runID, string(name), now, value, map[string]string{})
+		err = batch.Append(w.runID, string(name), now, value, w.mergeAttributes(nil))
 		if err != nil {
 			w.mu.Unlock()
 			return fmt.Errorf("failed to append metric (%s/%d) to batch: %w", name, value, err)
@@ -267,12 +269,7 @@ func (w *Worker) pushMetrics(ctx context.Context) error {
 	}
 
 	for _, m := range w.pointMetrics {
-		attr := m.Attributes
-		if attr == nil {
-			attr = map[string]string{}
-		}
-
-		err = batch.Append(w.runID, string(m.Name), m.Timestamp, m.Value, attr)
+		err = batch.Append(w.runID, string(m.Name), m.Timestamp, m.Value, w.mergeAttributes(m.Attributes))
 		if err != nil {
 			w.mu.Unlock()
 			return fmt.Errorf("failed to append point metric (%s/%d) to batch: %w", m.Name, m.Value, err)
@@ -289,6 +286,26 @@ func (w *Worker) pushMetrics(ctx context.Context) error {
 	w.log.Debug("pushed metrics", "count", batch.Rows())
 
 	return nil
+}
+
+// mergeAttributes returns config attributes merged with per-metric attributes.
+// Per-metric attributes take precedence over config attributes.
+func (w *Worker) mergeAttributes(pointAttr map[string]string) map[string]string {
+	if len(w.configAttributes) == 0 {
+		if pointAttr == nil {
+			return map[string]string{}
+		}
+		return pointAttr
+	}
+
+	merged := make(map[string]string, len(w.configAttributes)+len(pointAttr))
+	for k, v := range w.configAttributes {
+		merged[k] = v
+	}
+	for k, v := range pointAttr {
+		merged[k] = v
+	}
+	return merged
 }
 
 func (w *Worker) IncrementMetric(name Name, delta uint64) {

@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 100,
+    "generation": 105,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -865,7 +865,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  toString(toUInt64(attributes['time_range_seconds'])/60) as minutes,\n  count() as query_count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY minutes\nORDER BY toUInt64(minutes) ASC"
+                        "rawSql": "SELECT\n  toString(toUInt64(floor(toFloat64(attributes['time_range_seconds']) / 3600))) AS hours,\n  count() AS query_count\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY hours\nORDER BY toUInt64(hours) ASC\n"
                       },
                       "version": "v0"
                     },
@@ -968,7 +968,7 @@
                   "mode": "single",
                   "sort": "none"
                 },
-                "xField": "time_range_bucket",
+                "xField": "minutes",
                 "xTickLabelRotation": 0,
                 "xTickLabelSpacing": 0
               }
@@ -3141,7 +3141,7 @@
     "preload": false,
     "tags": [],
     "timeSettings": {
-      "autoRefresh": "1m",
+      "autoRefresh": "",
       "autoRefreshIntervals": [
         "5s",
         "10s",
@@ -3155,7 +3155,7 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-15m",
+      "from": "now-3d",
       "hideTimepicker": false,
       "timezone": "utc",
       "to": "now"
@@ -3189,7 +3189,7 @@
             "text": "",
             "value": ""
           },
-          "definition": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20",
+          "definition": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 50",
           "hide": "dontHide",
           "includeAll": false,
           "label": "Run ID",
@@ -3203,7 +3203,7 @@
             "group": "grafana-clickhouse-datasource",
             "kind": "DataQuery",
             "spec": {
-              "__legacyStringValue": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 20"
+              "__legacyStringValue": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 50"
             },
             "version": "v0"
           },

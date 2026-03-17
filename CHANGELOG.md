@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- **Metrics renamed to Prometheus conventions** — All counter metrics now use `_total` suffix. The former `*_per_second` accumulated metrics are replaced by true counters.
+
+| Old name | New name |
+|---|---|
+| `read_rows_per_second` | removed (use `disk_rows_total`) |
+| `read_compressed_bytes_per_second` | removed (use `disk_bytes_compressed_total`) |
+| `read_uncompressed_bytes_per_second` | removed (use `disk_bytes_uncompressed_total`) |
+| `insert_rows_per_second` | `insert_rows_total` |
+| `insert_bytes_per_second` | `insert_bytes_compressed_total` |
+| `insert_batches_per_second` | `insert_batches_total` |
+| `user_queries_per_second` | `user_queries_total` |
+| `failed_user_queries_per_second` | `failed_queries_total` |
+| `total_rows` | `disk_rows_total` |
+| `total_bytes_compressed` | `disk_bytes_compressed_total` |
+| `total_bytes_uncompressed` | `disk_bytes_uncompressed_total` |
+| `program_num_gc` | `program_gc_runs_total` |
+| `program_gc_pause_total_ns` | `program_gc_pause_ns_total` |
+| `program_cpu_user_ns` | `program_cpu_user_ns_total` |
+| `program_cpu_sys_ns` | `program_cpu_sys_ns_total` |
+
+### New Features
+
+- **Insert bytes uncompressed metric** — `insert_bytes_uncompressed_total` now tracks the uncompressed data size of inserts (from ClickHouse's `InsertedBytes` ProfileEvent), alongside the existing compressed network bytes metric.
+
 ## v0.3.0
 
 ### Breaking Changes

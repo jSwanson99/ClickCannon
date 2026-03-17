@@ -61,7 +61,7 @@ func (w *Worker) Run(ctx context.Context) error {
 			continue
 		} else if err != nil {
 			w.log.Error("query failed", "name", q.Name, "err", err, "sql", q.SQL, "params", q.Params)
-			w.metrics.IncrementMetric(metrics.FailedUserQueriesPerSecond, 1)
+			w.metrics.IncrementMetric(metrics.FailedQueriesTotal, 1)
 		} else {
 			attr := make(map[string]string, 7)
 			attr["query_name"] = result.Query.Name
@@ -85,7 +85,7 @@ func (w *Worker) Run(ctx context.Context) error {
 			}
 
 			w.metrics.AddMetricPointWithAttributes(metrics.QueryLatencyMicros, uint64(result.Duration.Microseconds()), attr)
-			w.metrics.IncrementMetric(metrics.UserQueriesPerSecond, 1)
+			w.metrics.IncrementMetric(metrics.UserQueriesTotal, 1)
 
 			w.log.Debug("ran query", "name", q.Name, "query_index", result.Query.QueryIndex, "latency", result.Duration, "time_range", result.Query.TimeRange.String(), "time_range_seconds", int(result.Query.TimeRange.Seconds()))
 		}

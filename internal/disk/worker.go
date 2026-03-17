@@ -119,8 +119,7 @@ func (w *worker) buildReader() (*proto.Reader, func(), error) {
 	}
 
 	compressedSpeedRd := NewSpeedReader(data, func(n uint64) {
-		w.metrics.IncrementMetric(metrics.ReadCompressedBytesPerSecond, n)
-		w.metrics.IncrementMetric(metrics.TotalBytesCompressed, n)
+		w.metrics.IncrementMetric(metrics.DiskBytesCompressedTotal, n)
 	})
 
 	var (
@@ -148,8 +147,7 @@ func (w *worker) buildReader() (*proto.Reader, func(), error) {
 
 	optReader = bufio.NewReaderSize(optReader, 32*1024)
 	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, func(n uint64) {
-		w.metrics.IncrementMetric(metrics.ReadUncompressedBytesPerSecond, n)
-		w.metrics.IncrementMetric(metrics.TotalBytesUncompressed, n)
+		w.metrics.IncrementMetric(metrics.DiskBytesUncompressedTotal, n)
 	})
 
 	cleanup := func() {
@@ -202,8 +200,7 @@ func (w *worker) decodeBlock(ctx context.Context, rd *proto.Reader, dec *proto.B
 
 	cols.MutateIDs(w.file.LoopIndex)
 
-	w.metrics.IncrementMetric(metrics.ReadRowsPerSecond, uint64(colsRes.Rows()))
-	w.metrics.IncrementMetric(metrics.TotalRows, uint64(colsRes.Rows()))
+	w.metrics.IncrementMetric(metrics.DiskRowsTotal, uint64(colsRes.Rows()))
 
 	if w.passthrough {
 		// Passthrough for testing max disk read speed.

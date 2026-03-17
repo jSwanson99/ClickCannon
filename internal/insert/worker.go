@@ -160,11 +160,11 @@ func (w *worker) Run(ctx context.Context) error {
 					// https://github.com/ClickHouse/ClickHouse/blob/master/src/Common/ProfileEvents.cpp
 					switch e.Name {
 					case "InsertedRows":
-						w.metrics.IncrementMetric(metrics.InsertRowsPerSecond, uint64(e.Value))
+						w.metrics.IncrementMetric(metrics.InsertRowsTotal, uint64(e.Value))
 					case "InsertedBytes":
-						// We track this elsewhere, it should be the uncompressed size of the insert
+						w.metrics.IncrementMetric(metrics.InsertBytesUncompressedTotal, uint64(e.Value))
 					case "NetworkReceiveBytes":
-						w.metrics.IncrementMetric(metrics.InsertBytesPerSecond, uint64(e.Value))
+						w.metrics.IncrementMetric(metrics.InsertBytesCompressedTotal, uint64(e.Value))
 					default:
 						continue
 					}
@@ -200,7 +200,7 @@ func (w *worker) Run(ctx context.Context) error {
 			currentBlock = nil
 		}
 
-		w.metrics.IncrementMetric(metrics.InsertBatchesPerSecond, 1)
+		w.metrics.IncrementMetric(metrics.InsertBatchesTotal, 1)
 
 		batchCount++
 		if w.workerRetirementBatches > 0 && batchCount-w.initialBatchCount >= w.workerRetirementBatches {

@@ -3,18 +3,36 @@ package metrics
 type Name string
 
 const (
-	// Per second metrics
+	// Counters
 
-	ReadRowsPerSecond              Name = "read_rows_per_second"
-	ReadCompressedBytesPerSecond   Name = "read_compressed_bytes_per_second"
-	ReadUncompressedBytesPerSecond Name = "read_uncompressed_bytes_per_second"
-	InsertRowsPerSecond            Name = "insert_rows_per_second"
-	InsertBytesPerSecond           Name = "insert_bytes_per_second"
-	InsertBatchesPerSecond         Name = "insert_batches_per_second"
-	UserQueriesPerSecond           Name = "user_queries_per_second"
-	FailedUserQueriesPerSecond     Name = "failed_user_queries_per_second"
+	// Disk read counters
 
-	// State counters
+	DiskRowsTotal              Name = "disk_rows_total"
+	DiskBytesCompressedTotal   Name = "disk_bytes_compressed_total"   // raw bytes read from disk (zstd-compressed file)
+	DiskBytesUncompressedTotal Name = "disk_bytes_uncompressed_total" // bytes after zstd decompression (native protocol format)
+
+	// Insert counters
+
+	InsertRowsTotal              Name = "insert_rows_total"
+	InsertBytesUncompressedTotal Name = "insert_bytes_uncompressed_total" // InsertedBytes ProfileEvent: uncompressed data size as seen by ClickHouse
+	InsertBytesCompressedTotal   Name = "insert_bytes_compressed_total"   // NetworkReceiveBytes ProfileEvent: compressed bytes received over the wire
+	InsertBatchesTotal           Name = "insert_batches_total"
+	BlocksRetiredTotal           Name = "blocks_retired_total"
+	InsertWorkersRetiredTotal    Name = "insert_workers_retired_total"
+
+	// User query counters
+
+	UserQueriesTotal   Name = "user_queries_total"
+	FailedQueriesTotal Name = "failed_queries_total"
+
+	// Counters — Go runtime
+
+	ProgramGCRunsTotal    Name = "program_gc_runs_total"
+	ProgramGCPauseNsTotal Name = "program_gc_pause_ns_total"
+	ProgramCPUUserNsTotal Name = "program_cpu_user_ns_total"
+	ProgramCPUSysNsTotal  Name = "program_cpu_sys_ns_total"
+
+	// Gauges
 
 	TargetBytesPerSecond       Name = "target_bytes_per_second"
 	TargetWorkerBytesPerSecond Name = "target_worker_bytes_per_second"
@@ -26,34 +44,16 @@ const (
 	BlockPoolCount    Name = "block_pool_count"
 	BlockPoolCapacity Name = "block_pool_capacity"
 	BlockQueueLength  Name = "block_queue_length"
-	// BlocksRetiredTotal is a monotonically increasing count of blocks retired over the
-	// program's lifetime. A retirement occurs when a reused block exceeds its configured
-	// use limit and is replaced with a fresh allocation to reclaim column slice memory.
-	BlocksRetiredTotal Name = "blocks_retired_total"
-	// InsertWorkersRetiredTotal is a monotonically increasing count of insert workers that
-	// have retired over the program's lifetime. Workers retire after a configured number of
-	// batches to reclaim ch-go encoder buffer memory.
-	InsertWorkersRetiredTotal Name = "insert_workers_retired_total"
 
-	// Totals
+	// Gauges — Go runtime
 
-	TotalRows              Name = "total_rows"
-	TotalBytesCompressed   Name = "total_bytes_compressed"
-	TotalBytesUncompressed Name = "total_bytes_uncompressed"
+	ProgramHeapAllocBytes Name = "program_heap_alloc_bytes"
+	ProgramSysBytes       Name = "program_sys_bytes"
+	ProgramNumGoroutines  Name = "program_num_goroutines"
+	ProgramNextGCBytes    Name = "program_next_gc_bytes"
+	ProgramNumCPU         Name = "program_num_cpu"
 
-	// Individual point metrics
+	// Samples
 
 	QueryLatencyMicros Name = "query_latency_micros"
-
-	// Program runtime metrics
-
-	ProgramHeapAllocBytes   Name = "program_heap_alloc_bytes"
-	ProgramSysBytes         Name = "program_sys_bytes"
-	ProgramNumGoroutines    Name = "program_num_goroutines"
-	ProgramNumGC            Name = "program_num_gc"
-	ProgramPauseTotalNs     Name = "program_gc_pause_total_ns"
-	ProgramNextGCBytes      Name = "program_next_gc_bytes"
-	ProgramCPUUserNs        Name = "program_cpu_user_ns"
-	ProgramCPUSysNs         Name = "program_cpu_sys_ns"
-	ProgramNumCPU           Name = "program_num_cpu"
 )

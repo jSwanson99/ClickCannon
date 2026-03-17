@@ -196,52 +196,22 @@ func (w *Worker) collectRuntimeMetrics() {
 	w.SetMetric(ProgramHeapAllocBytes, ms.HeapAlloc)
 	w.SetMetric(ProgramSysBytes, ms.Sys)
 	w.SetMetric(ProgramNumGoroutines, uint64(runtime.NumGoroutine()))
-	w.SetMetric(ProgramNumGC, uint64(ms.NumGC))
-	w.SetMetric(ProgramPauseTotalNs, ms.PauseTotalNs)
+	w.SetMetric(ProgramGCRunsTotal, uint64(ms.NumGC))
+	w.SetMetric(ProgramGCPauseNsTotal, ms.PauseTotalNs)
 	w.SetMetric(ProgramNextGCBytes, ms.NextGC)
 
 	w.SetMetric(ProgramNumCPU, uint64(runtime.NumCPU()))
 
 	var ru syscall.Rusage
 	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err == nil {
-		w.SetMetric(ProgramCPUUserNs, uint64(ru.Utime.Nano()))
-		w.SetMetric(ProgramCPUSysNs, uint64(ru.Stime.Nano()))
+		w.SetMetric(ProgramCPUUserNsTotal, uint64(ru.Utime.Nano()))
+		w.SetMetric(ProgramCPUSysNsTotal, uint64(ru.Stime.Nano()))
 	}
 }
 
 func (w *Worker) resetMetrics() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-
-	for name := range w.metrics {
-		// Skip resetting these. They should probably go in their own table or something
-		switch name {
-		case TotalRows:
-		case TotalBytesCompressed:
-		case TotalBytesUncompressed:
-		case TargetBytesPerSecond:
-		case TargetWorkerBytesPerSecond:
-		case ActiveReaders:
-		case ActiveInserters:
-		case ActiveUsers:
-		case BlockPoolCount:
-		case BlockPoolCapacity:
-		case BlockQueueLength:
-		case BlocksRetiredTotal:
-		case InsertWorkersRetiredTotal:
-		case ProgramHeapAllocBytes:
-		case ProgramSysBytes:
-		case ProgramNumGoroutines:
-		case ProgramNumGC:
-		case ProgramPauseTotalNs:
-		case ProgramNextGCBytes:
-		case ProgramCPUUserNs:
-		case ProgramCPUSysNs:
-		case ProgramNumCPU:
-		default:
-			w.metrics[name] = 0
-		}
-	}
 
 	w.pointMetrics = w.pointMetrics[:0]
 }

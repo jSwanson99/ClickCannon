@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"otelspam/internal/block"
 	"runtime"
 	"sync"
@@ -53,9 +54,9 @@ func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytes
 		blockPool:  blockPool,
 		blockQueue: blockQueue,
 
-		metricsQueue: make(chan Entry, 10_000),
+		metricsQueue: make(chan Entry, 100_000),
 		metrics:      make(map[metricKey]uint64),
-		pointMetrics: make([]Entry, 0, 10_000),
+		pointMetrics: make([]Entry, 0, 100_000),
 	}
 
 	if cfg.ClickHouseDSN != "" {
@@ -129,46 +130,26 @@ func (w *Worker) Run(ctx context.Context) error {
 	w.log.Info("started")
 	defer w.log.Info("stopped")
 
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(1 * time.Second):
-			// this should be set from somewhere else maybe, but this works fine for now
-			blockPoolCount, blockPoolCapacity := w.blockPool.Stats()
-			w.SetMetric(BlockPoolCount, uint64(blockPoolCount))
-			w.SetMetric(BlockPoolCapacity, uint64(blockPoolCapacity))
-			w.SetMetric(BlockQueueLength, uint64(len(w.blockQueue)))
-			w.SetMetric(BlocksRetiredTotal, uint64(w.blockPool.TotalRetired()))
-
-			// this should be dynamically adjustable in the future, but for now we set it constantly
-			w.SetMetric(TargetBytesPerSecond, w.targetBytesPerSecond)
-
-			w.collectRuntimeMetrics()
-
-			// Drain the queue before pushing so no entries are lost between push and reset
-			w.drainMetricsQueue()
-
-			if w.insertSQL != "" {
-				err := w.pushMetrics(ctx)
-				if err != nil {
-					w.log.Error("failed to push metrics", "err", err)
-					continue
-				}
-			}
-
-			w.resetMetrics()
-		}
-	}
-}
-
-func (w *Worker) drainMetricsQueue() {
-	for {
-		select {
 		case m := <-w.metricsQueue:
 			w.applyMetricEntry(m)
-		default:
-			return
+		case <-ticker.C:
+			w.collectInternalMetrics()
+
+			if w.insertSQL != "" {
+				snapshot, pointSnapshot := w.snapshotAndReset()
+				if err := w.pushMetrics(ctx, snapshot, pointSnapshot); err != nil {
+					w.log.Error("failed to push metrics", "err", err)
+				}
+			} else {
+				w.resetMetrics()
+			}
 		}
 	}
 }
@@ -199,24 +180,64 @@ func (w *Worker) applyMetricEntry(m Entry) {
 	}
 }
 
-func (w *Worker) collectRuntimeMetrics() {
+// collectInternalMetrics gathers block pool and runtime stats directly into
+// the map, bypassing the queue. Expensive calls (ReadMemStats, Getrusage) are
+// done outside the lock; only the map writes are held under it.
+func (w *Worker) collectInternalMetrics() {
+	blockPoolCount, blockPoolCapacity := w.blockPool.Stats()
+	retired := w.blockPool.TotalRetired()
+	queueLen := len(w.blockQueue)
+	numGoroutines := runtime.NumGoroutine()
+	numCPU := runtime.NumCPU()
+
 	var ms runtime.MemStats
-	runtime.ReadMemStats(&ms)
+	runtime.ReadMemStats(&ms) // stop-the-world; must not hold w.mu
 
-	w.SetMetric(ProgramHeapAllocBytes, ms.HeapAlloc)
-	w.SetMetric(ProgramSysBytes, ms.Sys)
-	w.SetMetric(ProgramNumGoroutines, uint64(runtime.NumGoroutine()))
-	w.SetMetric(ProgramGCRunsTotal, uint64(ms.NumGC))
-	w.SetMetric(ProgramGCPauseNsTotal, ms.PauseTotalNs)
-	w.SetMetric(ProgramNextGCBytes, ms.NextGC)
-
-	w.SetMetric(ProgramNumCPU, uint64(runtime.NumCPU()))
-
+	var cpuUser, cpuSys uint64
 	var ru syscall.Rusage
 	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err == nil {
-		w.SetMetric(ProgramCPUUserNsTotal, uint64(ru.Utime.Nano()))
-		w.SetMetric(ProgramCPUSysNsTotal, uint64(ru.Stime.Nano()))
+		cpuUser = uint64(ru.Utime.Nano())
+		cpuSys = uint64(ru.Stime.Nano())
 	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.metrics[metricKey{Name: BlockPoolCount}] = uint64(blockPoolCount)
+	w.metrics[metricKey{Name: BlockPoolCapacity}] = uint64(blockPoolCapacity)
+	w.metrics[metricKey{Name: BlockQueueLength}] = uint64(queueLen)
+	w.metrics[metricKey{Name: BlocksRetiredTotal}] = uint64(retired)
+	w.metrics[metricKey{Name: TargetBytesPerSecond}] = w.targetBytesPerSecond
+	w.metrics[metricKey{Name: ProgramHeapAllocBytes}] = ms.HeapAlloc
+	w.metrics[metricKey{Name: ProgramSysBytes}] = ms.Sys
+	w.metrics[metricKey{Name: ProgramNumGoroutines}] = uint64(numGoroutines)
+	w.metrics[metricKey{Name: ProgramGCRunsTotal}] = uint64(ms.NumGC)
+	w.metrics[metricKey{Name: ProgramGCPauseNsTotal}] = ms.PauseTotalNs
+	w.metrics[metricKey{Name: ProgramNextGCBytes}] = ms.NextGC
+	w.metrics[metricKey{Name: ProgramNumCPU}] = uint64(numCPU)
+	if cpuUser > 0 {
+		w.metrics[metricKey{Name: ProgramCPUUserNsTotal}] = cpuUser
+		w.metrics[metricKey{Name: ProgramCPUSysNsTotal}] = cpuSys
+	}
+}
+
+// snapshotAndReset copies the current metrics state and clears point metrics.
+// Returns owned copies safe to use outside the lock.
+func (w *Worker) snapshotAndReset() (map[metricKey]uint64, []Entry) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	snapshot := make(map[metricKey]uint64, len(w.metrics))
+	maps.Copy(snapshot, w.metrics)
+
+	var pointSnapshot []Entry
+	if len(w.pointMetrics) > 0 {
+		pointSnapshot = make([]Entry, len(w.pointMetrics))
+		copy(pointSnapshot, w.pointMetrics)
+		w.pointMetrics = w.pointMetrics[:0]
+	}
+
+	return snapshot, pointSnapshot
 }
 
 func (w *Worker) resetMetrics() {
@@ -226,49 +247,39 @@ func (w *Worker) resetMetrics() {
 	w.pointMetrics = w.pointMetrics[:0]
 }
 
-func (w *Worker) pushMetrics(ctx context.Context) error {
+func (w *Worker) pushMetrics(ctx context.Context, snapshot map[metricKey]uint64, pointSnapshot []Entry) error {
 	batch, err := w.conn.PrepareBatch(ctx, w.insertSQL)
 	if err != nil {
 		return fmt.Errorf("failed to prepare metrics batch: %w", err)
 	}
 	defer func(batch driver.Batch) {
-		batchErr := batch.Close()
-		if batchErr != nil {
+		if batchErr := batch.Close(); batchErr != nil {
 			w.log.Error("failed to close batch", "err", batchErr)
 		}
 	}(batch)
 
-	w.mu.Lock()
 	now := time.Now()
-	for key, value := range w.metrics {
+	for key, value := range snapshot {
 		var extraAttr map[string]string
 		if key.AttrKey != "" {
 			extraAttr = map[string]string{key.AttrKey: key.AttrValue}
 		}
-		err = batch.Append(w.runID, string(key.Name), now, value, w.mergeAttributes(extraAttr))
-		if err != nil {
-			w.mu.Unlock()
+		if err = batch.Append(w.runID, string(key.Name), now, value, w.mergeAttributes(extraAttr)); err != nil {
 			return fmt.Errorf("failed to append metric (%s/%d) to batch: %w", key.Name, value, err)
 		}
 	}
 
-	for _, m := range w.pointMetrics {
-		err = batch.Append(w.runID, string(m.Name), m.Timestamp, m.Value, w.mergeAttributes(m.Attributes))
-		if err != nil {
-			w.mu.Unlock()
+	for _, m := range pointSnapshot {
+		if err = batch.Append(w.runID, string(m.Name), m.Timestamp, m.Value, w.mergeAttributes(m.Attributes)); err != nil {
 			return fmt.Errorf("failed to append point metric (%s/%d) to batch: %w", m.Name, m.Value, err)
 		}
 	}
 
-	w.mu.Unlock()
-
-	err = batch.Send()
-	if err != nil {
+	if err = batch.Send(); err != nil {
 		return fmt.Errorf("failed to send metrics: %w", err)
 	}
 
 	w.log.Debug("pushed metrics", "count", batch.Rows())
-
 	return nil
 }
 

@@ -23,9 +23,9 @@ const ShiftTimestampNow = "now"   // Shifts the input data's timestamp to be the
 const ShiftTimestampMinute = "minute"
 
 type worker struct {
-	id       int
+	id    int
 	idStr string
-	log      *slog.Logger
+	log   *slog.Logger
 
 	file dataFile
 
@@ -58,9 +58,9 @@ func newWorker(
 	replayTimeKeeper *block.ReplayTimeKeeper,
 ) *worker {
 	return &worker{
-		id:       id,
+		id:    id,
 		idStr: strconv.Itoa(id),
-		log:      log.With("component", "disk_worker", "id", id, "file", file.Path, "compressed", file.Compressed, "file_index", file.Index, "loop_index", file.LoopIndex),
+		log:   log.With("component", "disk_worker", "id", id, "file", file.Path, "compressed", file.Compressed, "file_index", file.Index, "loop_index", file.LoopIndex),
 
 		file:           file,
 		shiftTimestamp: shiftTimestamp,
@@ -78,12 +78,10 @@ func newWorker(
 }
 
 func (w *worker) UpdateSpeedLimit(bytesPerSecondLimit uint64) {
-	if w.speedRd == nil {
-		return
-	}
-
 	w.bytesPerSecondLimit = bytesPerSecondLimit
-	w.speedRd.Reset(bytesPerSecondLimit)
+	if w.speedRd != nil {
+		w.speedRd.Reset(bytesPerSecondLimit)
+	}
 }
 
 func (w *worker) Run(ctx context.Context) error {

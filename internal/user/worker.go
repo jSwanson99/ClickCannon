@@ -97,8 +97,8 @@ func (w *Worker) Run(ctx context.Context) error {
 			}
 
 			w.metrics.AddMetricPointWithAttributes(metrics.QueryLatencyMicros, uint64(result.Duration.Microseconds()), attr)
-			w.metrics.IncrementMetric(metrics.QueriesSucceededTotal, 1)
-			w.metrics.IncrementMetricWithAttr(metrics.QueriesSucceededWorkerTotal, 1, "worker_id", w.idStr)
+			w.metrics.IncrementMetric(metrics.QueriesOkTotal, 1)
+			w.metrics.IncrementMetricWithAttr(metrics.QueriesOkWorkerTotal, 1, "worker_id", w.idStr)
 
 			w.log.Debug("ran query", "name", q.Name, "query_index", result.Query.QueryIndex, "latency", result.Duration, "time_range", result.Query.TimeRange.String(), "time_range_seconds", int(result.Query.TimeRange.Seconds()))
 		}

@@ -144,7 +144,7 @@ func (s *Scheduler) newWorker(id int) (*Worker, error) {
 		return nil, fmt.Errorf("failed to create query runner: %w", err)
 	}
 
-	workflow, err := newWorkflow(workerLog, s.cfg, workflowCfg.Name, workflowCfg, queryRunner, rng, datasetStart, datasetEnd)
+	workflow, err := newWorkflow(workerLog, s.cfg, workflowCfg.Name, workflowCfg, queryRunner, rng, datasetStart, datasetEnd, s.metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create workflow (type: %q, name: %q): %w", workflowCfg.Type, workflowCfg.Name, err)
 	}

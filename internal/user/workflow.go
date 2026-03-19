@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"otelspam/internal/metrics"
 	"time"
 )
 
@@ -17,10 +18,10 @@ type Workflow interface {
 	ResetLoop() bool
 }
 
-func newWorkflow(log *slog.Logger, userCfg *Config, name string, cfg WorkflowBaseConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) (Workflow, error) {
+func newWorkflow(log *slog.Logger, userCfg *Config, name string, cfg WorkflowBaseConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time, m metrics.Store) (Workflow, error) {
 	switch c := cfg.Config.(type) {
 	case QueriesWorkflowConfig:
-		return NewQueriesWorkflow(log, userCfg, name, &c, queryRunner, rng, datasetStart, datasetEnd), nil
+		return NewQueriesWorkflow(log, userCfg, name, &c, queryRunner, rng, datasetStart, datasetEnd, m), nil
 	case HARWorkflowConfig:
 		//return NewHARWorkflow(), nil
 		return nil, fmt.Errorf("unimplemented workflow type %q", cfg.Type)
@@ -35,6 +36,7 @@ type QueriesWorkflow struct {
 	userCfg      *Config
 	cfg          *QueriesWorkflowConfig
 	queryRunner  QueryRunner
+	metrics      metrics.Store
 	rng          *rand.Rand
 	index        int
 	datasetStart time.Time
@@ -45,13 +47,14 @@ type QueriesWorkflow struct {
 	workflowBindsCached bool
 }
 
-func NewQueriesWorkflow(log *slog.Logger, userCfg *Config, name string, cfg *QueriesWorkflowConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) *QueriesWorkflow {
+func NewQueriesWorkflow(log *slog.Logger, userCfg *Config, name string, cfg *QueriesWorkflowConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time, m metrics.Store) *QueriesWorkflow {
 	return &QueriesWorkflow{
 		log:          log,
 		name:         name,
 		userCfg:      userCfg,
 		cfg:          cfg,
 		queryRunner:  queryRunner,
+		metrics:      m,
 		rng:          rng,
 		datasetStart: datasetStart,
 		datasetEnd:   datasetEnd,
@@ -210,8 +213,10 @@ func (b *QueriesWorkflow) execPreflights(ctx context.Context, params QueryParams
 		params.Preflight = binds
 		result, err := b.queryRunner.ExecPreflight(ctx, pf.Binds, pf.SQL, pf.Settings, params.Params())
 		if err != nil {
+			b.metrics.IncrementMetric(metrics.PreflightsFailedTotal, 1)
 			return nil, fmt.Errorf("preflight_queries[%d]: %w", i, err)
 		}
+		b.metrics.IncrementMetric(metrics.PreflightsOkTotal, 1)
 		for k, v := range result {
 			binds[k] = v
 		}

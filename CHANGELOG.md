@@ -14,7 +14,7 @@
 | `insert_rows_per_second` | `insert_rows_total` |
 | `insert_bytes_per_second` | `insert_bytes_compressed_total` |
 | `insert_batches_per_second` | `insert_batches_total` |
-| `user_queries_per_second` | `queries_succeeded_total` |
+| `user_queries_per_second` | `queries_ok_total` |
 | `failed_user_queries_per_second` | `queries_failed_total` |
 | `total_rows` | `disk_rows_total` |
 | `total_bytes_compressed` | `disk_bytes_compressed_total` |
@@ -33,9 +33,10 @@
 - **Insert bytes uncompressed metric** — `insert_bytes_uncompressed_total` now tracks the uncompressed data size of inserts (from ClickHouse's `InsertedBytes` ProfileEvent), alongside the existing `insert_bytes_compressed_total` for wire bytes.
 - **Per-worker insert metrics** — Four new counters track insert activity broken down by worker: `insert_rows_worker_total`, `insert_bytes_uncompressed_worker_total`, `insert_bytes_compressed_worker_total`, `insert_batches_worker_total`. Filter or group by `attributes['worker_id']` in queries.
 - **Per-worker disk read metrics** — Same pattern for disk readers: `disk_rows_worker_total`, `disk_bytes_compressed_worker_total`, `disk_bytes_uncompressed_worker_total`.
-- **Per-worker user query metrics** — `queries_succeeded_worker_total`, `queries_failed_worker_total`, keyed by `attributes['worker_id']`.
+- **Per-worker user query metrics** — `queries_ok_worker_total`, `queries_failed_worker_total`, keyed by `attributes['worker_id']`.
 - **Grafana dashboard query improvements** — All counter panels now compute per-second rates using `lagInFrame` with proper `PARTITION BY metric_name`, replacing the old pre-computed rate metrics.
 - **Query index attribute for queries** - the query latency metric now stores `query_index` in the attributes, perhaps useful for sorting a sequence of queries in a chart
+- **Preflight query counters** — `preflights_ok_total` and `preflights_failed_total` count individual preflight query executions.
 
 ## v0.3.0
 

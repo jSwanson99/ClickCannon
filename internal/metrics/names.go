@@ -30,15 +30,20 @@ const (
 	DiskBytesUncompressedWorkerTotal Name = "disk_bytes_uncompressed_worker_total"
 
 	// Per-worker user query counters (attribute: worker_id)
-	QueriesSucceededWorkerTotal Name = "queries_succeeded_worker_total"
+	QueriesOkWorkerTotal Name = "queries_ok_worker_total"
 	QueriesFailedWorkerTotal    Name = "queries_failed_worker_total"
 	BlocksRetiredTotal           Name = "blocks_retired_total"
 	InsertWorkersRetiredTotal    Name = "insert_workers_retired_total"
 
 	// User query counters
 
-	QueriesSucceededTotal Name = "queries_succeeded_total"
+	QueriesOkTotal Name = "queries_ok_total"
 	QueriesFailedTotal    Name = "queries_failed_total"
+
+	// Preflight query counters
+
+	PreflightsOkTotal     Name = "preflights_ok_total"
+	PreflightsFailedTotal Name = "preflights_failed_total"
 
 	// Counters — Go runtime
 

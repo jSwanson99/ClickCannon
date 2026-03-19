@@ -12,9 +12,9 @@ import (
 )
 
 type Worker struct {
-	id       int
+	id    int
 	idStr string
-	log      *slog.Logger
+	log   *slog.Logger
 
 	cfg         *Config
 	workflow    Workflow
@@ -25,7 +25,7 @@ type Worker struct {
 func NewWorker(id int, log *slog.Logger, cfg *Config, workflow Workflow, queryRunner QueryRunner, metrics metrics.Store) *Worker {
 	return &Worker{
 		id:          id,
-		idStr:    strconv.Itoa(id),
+		idStr:       strconv.Itoa(id),
 		log:         log, // scheduler sets component/id attributes
 		cfg:         cfg,
 		workflow:    workflow,
@@ -49,9 +49,17 @@ func (w *Worker) Run(ctx context.Context) error {
 		if err != nil && errors.Is(err, context.Canceled) {
 			continue
 		} else if err != nil && errors.Is(err, sql.ErrNoRows) {
-			w.log.Debug("preflight query had no rows, skipping", "err", err)
+			if w.workflow.ResetLoop() {
+				w.log.Warn("preflight had no rows, restarting query sequence", "err", err)
+			} else {
+				w.log.Debug("preflight query had no rows, skipping", "err", err)
+			}
 			continue
 		} else if err != nil {
+			if w.workflow.ResetLoop() {
+				w.log.Warn("preflight failed, restarting query loop", "err", err)
+				continue
+			}
 			return fmt.Errorf("worker %d workflow error: %w", w.id, err)
 		}
 		if q == nil {
@@ -64,7 +72,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		} else if err != nil {
 			w.log.Error("query failed", "name", q.Name, "err", err, "sql", q.SQL, "params", q.Params)
 			w.metrics.IncrementMetric(metrics.QueriesFailedTotal, 1)
-		w.metrics.IncrementMetricWithAttr(metrics.QueriesFailedWorkerTotal, 1, "worker_id", w.idStr)
+			w.metrics.IncrementMetricWithAttr(metrics.QueriesFailedWorkerTotal, 1, "worker_id", w.idStr)
 		} else {
 			attr := make(map[string]string, 7)
 			attr["query_name"] = result.Query.Name

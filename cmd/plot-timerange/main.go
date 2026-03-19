@@ -51,11 +51,11 @@ func main() {
 	w := csv.NewWriter(os.Stdout)
 	w.Write([]string{"x_minutes", "y_count"})
 	for _, k := range keys {
-		pct := float64(buckets[k]) / float64(runs) * 100
+		// pct := float64(buckets[k]) / float64(runs) * 100
 		w.Write([]string{
 			strconv.FormatFloat(k.Minutes(), 'f', 4, 64),
-			// strconv.Itoa(buckets[k]),
-			strconv.FormatFloat(pct, 'f', 3, 64),
+			strconv.Itoa(buckets[k]),
+			// strconv.FormatFloat(pct, 'f', 3, 64),
 		})
 	}
 	w.Flush()

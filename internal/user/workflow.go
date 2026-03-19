@@ -12,6 +12,9 @@ type Workflow interface {
 	NextQuery(ctx context.Context) (*ExecutableQuery, error)
 	ThinkTime() time.Duration
 	Name() string
+	// ResetLoop rewinds to the start of the current query loop so preflights
+	// and time ranges are re-sampled. Returns true if the reset was performed.
+	ResetLoop() bool
 }
 
 func newWorkflow(log *slog.Logger, userCfg *Config, name string, cfg WorkflowBaseConfig, queryRunner QueryRunner, rng *rand.Rand, datasetStart, datasetEnd time.Time) (Workflow, error) {
@@ -232,6 +235,21 @@ func mergeSettings(defaults, overrides map[string]string) map[string]string {
 	}
 
 	return merged
+}
+
+// ResetLoop rewinds the query index to the start of the current loop so that
+// nextQueryConfig will see loopWrapped=true and clear cached time ranges and
+// preflight binds. Only resets when preflight_cadence is per_loop — for other
+// cadences a preflight failure is not recoverable by re-looping.
+func (b *QueriesWorkflow) ResetLoop() bool {
+	if b.cfg.PreflightCadence != WorkflowPreflightCadencePerLoop {
+		return false
+	}
+
+	n := len(b.cfg.Queries)
+	b.index = (b.index / n) * n
+
+	return true
 }
 
 func (b *QueriesWorkflow) nextQueryConfig() (int, *QueryConfig) {

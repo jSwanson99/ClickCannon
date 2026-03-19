@@ -24,6 +24,10 @@
 | `program_cpu_user_ns` | `program_cpu_user_ns_total` |
 | `program_cpu_sys_ns` | `program_cpu_sys_ns_total` |
 
+### Improvements
+
+- **Preflight failure restarts query loop** — When `preflight_cadence: per_loop` is set and a workflow-level preflight fails (including `sql.ErrNoRows`), the worker now resets to the start of the query sequence and re-samples the time range and binds, instead of aborting the worker entirely. This avoids scheduler-level restarts with exponential backoff for transient preflight failures (e.g., sampled time range with no matching data). Other cadences (`once`, `per_query`) retain the previous behavior.
+
 ### New Features
 
 - **Insert bytes uncompressed metric** — `insert_bytes_uncompressed_total` now tracks the uncompressed data size of inserts (from ClickHouse's `InsertedBytes` ProfileEvent), alongside the existing `insert_bytes_compressed_total` for wire bytes.

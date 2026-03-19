@@ -35,6 +35,7 @@
 - **Per-worker disk read metrics** — Same pattern for disk readers: `disk_rows_worker_total`, `disk_bytes_compressed_worker_total`, `disk_bytes_uncompressed_worker_total`.
 - **Per-worker user query metrics** — `queries_succeeded_worker_total`, `queries_failed_worker_total`, keyed by `attributes['worker_id']`.
 - **Grafana dashboard query improvements** — All counter panels now compute per-second rates using `lagInFrame` with proper `PARTITION BY metric_name`, replacing the old pre-computed rate metrics.
+- **Query index attribute for queries** - the query latency metric now stores `query_index` in the attributes, perhaps useful for sorting a sequence of queries in a chart
 
 ## v0.3.0
 

@@ -75,6 +75,7 @@ func (w *Worker) Run(ctx context.Context) error {
 			w.metrics.IncrementMetricWithAttr(metrics.QueriesFailedWorkerTotal, 1, "worker_id", w.idStr)
 		} else {
 			attr := make(map[string]string, 7)
+			attr["query_index"] = strconv.Itoa(result.Query.QueryIndex)
 			attr["query_name"] = result.Query.Name
 			attr["workflow_name"] = w.workflow.Name()
 			if result.Query.TimeRange > 0 {

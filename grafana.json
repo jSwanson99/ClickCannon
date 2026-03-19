@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 107,
+    "generation": 108,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -62,7 +62,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('target_bytes_per_second', 'target_worker_bytes_per_second', 'read_uncompressed_bytes_per_second', 'read_compressed_bytes_per_second', 'insert_bytes_per_second')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  timestamp,\n  if(\n    metric_name IN ('target_bytes_per_second', 'target_worker_bytes_per_second'),\n    value,\n    (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp))\n    / nullIf(dateDiff('second',\n        lagInFrame(timestamp, 1, timestamp) OVER (PARTITION BY metric_name ORDER BY timestamp),\n        timestamp), 0)\n  ) AS value\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN (\n    'target_bytes_per_second',\n    'target_worker_bytes_per_second',\n    'disk_bytes_uncompressed_total',\n    'disk_bytes_compressed_total',\n    'insert_bytes_compressed_total',\n    'insert_bytes_uncompressed_total'\n  )\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -188,7 +188,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "table",
-                        "rawSql": "SELECT quantile(0.5)(value) FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'read_compressed_bytes_per_second' AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_bytes_compressed_total'\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -352,7 +352,7 @@
                       }
                     ]
                   },
-                  "unit": "µs"
+                  "unit": "\u00b5s"
                 },
                 "overrides": []
               },
@@ -473,7 +473,7 @@
                       }
                     ]
                   },
-                  "unit": "µs"
+                  "unit": "\u00b5s"
                 },
                 "overrides": [
                   {
@@ -656,7 +656,7 @@
                       }
                     ]
                   },
-                  "unit": "µs"
+                  "unit": "\u00b5s"
                 },
                 "overrides": [
                   {
@@ -1009,7 +1009,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  (value - lagInFrame(value) OVER (ORDER BY timestamp)) as value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_cpu_sys_ns')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_cpu_sys_ns_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1041,7 +1041,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "WITH\n  (SELECT value FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'program_num_cpu' LIMIT 1) AS cpu_count\nSELECT\n  (value - lagInFrame(value) OVER (ORDER BY timestamp))/cpu_count as value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_cpu_user_ns')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "WITH\n  (SELECT value FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'program_num_cpu' LIMIT 1) AS cpu_count\nSELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) / cpu_count AS value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_cpu_user_ns_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1167,7 +1167,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('read_rows_per_second', 'insert_rows_per_second')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  timestamp,\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp))\n  / nullIf(dateDiff('second',\n      lagInFrame(timestamp, 1, timestamp) OVER (PARTITION BY metric_name ORDER BY timestamp),\n      timestamp), 0) AS value\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_rows_total', 'insert_rows_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1419,7 +1419,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_num_gc')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_gc_runs_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1635,7 +1635,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  (value - lagInFrame(value) OVER (ORDER BY timestamp)) as \"retired\",\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('blocks_retired_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS retired,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'blocks_retired_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1667,7 +1667,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  (value - lagInFrame(value) OVER (ORDER BY timestamp)) as \"retired\",\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_workers_retired_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS retired,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_workers_retired_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1793,7 +1793,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  value as batches,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_batches_per_second')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp))\n  / nullIf(dateDiff('second',\n      lagInFrame(timestamp, 1, timestamp) OVER (PARTITION BY metric_name ORDER BY timestamp),\n      timestamp), 0) AS batches,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_batches_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1919,7 +1919,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT quantile(0.5)(value) FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'insert_batches_per_second' AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_batches_total'\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -2011,7 +2011,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "-- SELECT\n--   metric_name as name,\n--   quantile(0.5)(value) as count,\n--   toStartOfInterval(timestamp, INTERVAL 60 SECOND) time\n-- FROM\n--   otelspam.perf\n-- WHERE\n--   run_id = '${run_id}'\n--   AND metric_name IN ('user_queries_per_second', 'failed_user_queries_per_second')\n--   AND $__timeFilter(timestamp)\n-- GROUP BY name, time\n-- ORDER BY time ASC\nSELECT\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) time,\n  toFloat64(count(value))/60 as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('query_latency_micros')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
+                        "rawSql": "-- SELECT\n--   metric_name as name,\n--   quantile(0.5)(value) as count,\n--   toStartOfInterval(timestamp, INTERVAL 60 SECOND) time\n-- FROM\n--   otelspam.perf\n-- WHERE\n--   run_id = '${run_id}'\n--   AND metric_name IN ('queries_succeeded_total', 'queries_failed_total')\n--   AND $__timeFilter(timestamp)\n-- GROUP BY name, time\n-- ORDER BY time ASC\nSELECT\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) time,\n  toFloat64(count(value))/60 as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('query_latency_micros')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -2055,7 +2055,7 @@
                   {
                     "matcher": {
                       "id": "byName",
-                      "options": "count user_queries_per_second"
+                      "options": "count queries_succeeded_total"
                     },
                     "properties": [
                       {
@@ -2070,7 +2070,7 @@
                   {
                     "matcher": {
                       "id": "byName",
-                      "options": "count failed_user_queries_per_second"
+                      "options": "count queries_failed_total"
                     },
                     "properties": [
                       {
@@ -2264,7 +2264,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('total_rows')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_rows_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -2356,7 +2356,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('total_bytes_uncompressed', 'total_bytes_compressed')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_bytes_uncompressed_total', 'disk_bytes_compressed_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -2540,7 +2540,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "table",
-                        "rawSql": "SELECT quantile(0.5)(value) FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'insert_rows_per_second' AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_rows_total'\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -2632,7 +2632,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "table",
-                        "rawSql": "SELECT quantile(0.5)(value) FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'read_uncompressed_bytes_per_second' AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_bytes_uncompressed_total'\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },

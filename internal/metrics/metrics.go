@@ -4,6 +4,9 @@ import "time"
 
 type Store interface {
 	IncrementMetric(name Name, delta uint64)
+	// IncrementMetricWithAttr increments a metric keyed by name + a single attribute.
+	// Use this for per-worker (or other per-entity) counters tracked under a distinct metric name.
+	IncrementMetricWithAttr(name Name, delta uint64, attrKey, attrValue string)
 	DecrementMetric(name Name, delta uint64)
 	SetMetric(name Name, value uint64)
 	GetMetric(name Name) uint64
@@ -32,6 +35,8 @@ type Entry struct {
 	Mode       EntryMode
 	Timestamp  time.Time
 	Name       Name
-	Attributes map[string]string
+	AttrKey    string
+	AttrValue  string
+	Attributes map[string]string // only used for point metrics
 	Value      uint64
 }

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"otelspam/internal/block"
+	"strconv"
 	"otelspam/internal/metrics"
 	"time"
 
@@ -18,8 +19,9 @@ import (
 var errWorkerRetired = errors.New("worker retired")
 
 type worker struct {
-	id  int
-	log *slog.Logger
+	id       int
+	idStr string
+	log      *slog.Logger
 
 	batchSize               int
 	workerRetirementBatches int
@@ -54,8 +56,9 @@ func newWorker(
 	}
 
 	w := worker{
-		id:  id,
-		log: log.With("component", "insert_worker", "id", id),
+		id:       id,
+		idStr: strconv.Itoa(id),
+		log:      log.With("component", "insert_worker", "id", id),
 
 		batchSize:               config.BatchSize,
 		workerRetirementBatches: config.WorkerRetirementBatches,
@@ -161,10 +164,13 @@ func (w *worker) Run(ctx context.Context) error {
 					switch e.Name {
 					case "InsertedRows":
 						w.metrics.IncrementMetric(metrics.InsertRowsTotal, uint64(e.Value))
+						w.metrics.IncrementMetricWithAttr(metrics.InsertRowsWorkerTotal, uint64(e.Value), "worker_id", w.idStr)
 					case "InsertedBytes":
 						w.metrics.IncrementMetric(metrics.InsertBytesUncompressedTotal, uint64(e.Value))
+						w.metrics.IncrementMetricWithAttr(metrics.InsertBytesUncompressedWorkerTotal, uint64(e.Value), "worker_id", w.idStr)
 					case "NetworkReceiveBytes":
 						w.metrics.IncrementMetric(metrics.InsertBytesCompressedTotal, uint64(e.Value))
+						w.metrics.IncrementMetricWithAttr(metrics.InsertBytesCompressedWorkerTotal, uint64(e.Value), "worker_id", w.idStr)
 					default:
 						continue
 					}
@@ -201,6 +207,7 @@ func (w *worker) Run(ctx context.Context) error {
 		}
 
 		w.metrics.IncrementMetric(metrics.InsertBatchesTotal, 1)
+		w.metrics.IncrementMetricWithAttr(metrics.InsertBatchesWorkerTotal, 1, "worker_id", w.idStr)
 
 		batchCount++
 		if w.workerRetirementBatches > 0 && batchCount-w.initialBatchCount >= w.workerRetirementBatches {

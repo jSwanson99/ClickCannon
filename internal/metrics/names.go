@@ -17,13 +17,28 @@ const (
 	InsertBytesUncompressedTotal Name = "insert_bytes_uncompressed_total" // InsertedBytes ProfileEvent: uncompressed data size as seen by ClickHouse
 	InsertBytesCompressedTotal   Name = "insert_bytes_compressed_total"   // NetworkReceiveBytes ProfileEvent: compressed bytes received over the wire
 	InsertBatchesTotal           Name = "insert_batches_total"
+
+	// Per-worker insert counters (attribute: worker_id)
+	InsertRowsWorkerTotal              Name = "insert_rows_worker_total"
+	InsertBytesUncompressedWorkerTotal Name = "insert_bytes_uncompressed_worker_total"
+	InsertBytesCompressedWorkerTotal   Name = "insert_bytes_compressed_worker_total"
+	InsertBatchesWorkerTotal           Name = "insert_batches_worker_total"
+
+	// Per-worker disk read counters (attribute: worker_id)
+	DiskRowsWorkerTotal              Name = "disk_rows_worker_total"
+	DiskBytesCompressedWorkerTotal   Name = "disk_bytes_compressed_worker_total"
+	DiskBytesUncompressedWorkerTotal Name = "disk_bytes_uncompressed_worker_total"
+
+	// Per-worker user query counters (attribute: worker_id)
+	QueriesSucceededWorkerTotal Name = "queries_succeeded_worker_total"
+	QueriesFailedWorkerTotal    Name = "queries_failed_worker_total"
 	BlocksRetiredTotal           Name = "blocks_retired_total"
 	InsertWorkersRetiredTotal    Name = "insert_workers_retired_total"
 
 	// User query counters
 
-	UserQueriesTotal   Name = "user_queries_total"
-	FailedQueriesTotal Name = "failed_queries_total"
+	QueriesSucceededTotal Name = "queries_succeeded_total"
+	QueriesFailedTotal    Name = "queries_failed_total"
 
 	// Counters — Go runtime
 

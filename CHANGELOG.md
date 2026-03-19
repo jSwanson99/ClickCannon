@@ -4,18 +4,18 @@
 
 ### Breaking Changes
 
-- **Metrics renamed to Prometheus conventions** — All counter metrics now use `_total` suffix. The former `*_per_second` accumulated metrics are replaced by true counters.
+- **Metrics renamed to Prometheus conventions** — All counter metrics now use `_total` suffix. `*_per_second` accumulated metrics (which reset every second) are replaced by true monotonic counters.
 
 | Old name | New name |
 |---|---|
-| `read_rows_per_second` | removed (use `disk_rows_total`) |
-| `read_compressed_bytes_per_second` | removed (use `disk_bytes_compressed_total`) |
-| `read_uncompressed_bytes_per_second` | removed (use `disk_bytes_uncompressed_total`) |
+| `read_rows_per_second` | `disk_rows_total` |
+| `read_compressed_bytes_per_second` | `disk_bytes_compressed_total` |
+| `read_uncompressed_bytes_per_second` | `disk_bytes_uncompressed_total` |
 | `insert_rows_per_second` | `insert_rows_total` |
 | `insert_bytes_per_second` | `insert_bytes_compressed_total` |
 | `insert_batches_per_second` | `insert_batches_total` |
-| `user_queries_per_second` | `user_queries_total` |
-| `failed_user_queries_per_second` | `failed_queries_total` |
+| `user_queries_per_second` | `queries_succeeded_total` |
+| `failed_user_queries_per_second` | `queries_failed_total` |
 | `total_rows` | `disk_rows_total` |
 | `total_bytes_compressed` | `disk_bytes_compressed_total` |
 | `total_bytes_uncompressed` | `disk_bytes_uncompressed_total` |
@@ -26,7 +26,11 @@
 
 ### New Features
 
-- **Insert bytes uncompressed metric** — `insert_bytes_uncompressed_total` now tracks the uncompressed data size of inserts (from ClickHouse's `InsertedBytes` ProfileEvent), alongside the existing compressed network bytes metric.
+- **Insert bytes uncompressed metric** — `insert_bytes_uncompressed_total` now tracks the uncompressed data size of inserts (from ClickHouse's `InsertedBytes` ProfileEvent), alongside the existing `insert_bytes_compressed_total` for wire bytes.
+- **Per-worker insert metrics** — Four new counters track insert activity broken down by worker: `insert_rows_worker_total`, `insert_bytes_uncompressed_worker_total`, `insert_bytes_compressed_worker_total`, `insert_batches_worker_total`. Filter or group by `attributes['worker_id']` in queries.
+- **Per-worker disk read metrics** — Same pattern for disk readers: `disk_rows_worker_total`, `disk_bytes_compressed_worker_total`, `disk_bytes_uncompressed_worker_total`.
+- **Per-worker user query metrics** — `queries_succeeded_worker_total`, `queries_failed_worker_total`, keyed by `attributes['worker_id']`.
+- **Grafana dashboard query improvements** — All counter panels now compute per-second rates using `lagInFrame` with proper `PARTITION BY metric_name`, replacing the old pre-computed rate metrics.
 
 ## v0.3.0
 

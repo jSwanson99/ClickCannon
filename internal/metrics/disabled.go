@@ -8,8 +8,9 @@ func NewDisabledStore() *DisabledStore {
 	return &DisabledStore{}
 }
 
-func (d *DisabledStore) IncrementMetric(name Name, delta uint64) {
-}
+func (d *DisabledStore) IncrementMetric(name Name, delta uint64) {}
+
+func (d *DisabledStore) IncrementMetricWithAttr(name Name, delta uint64, attrKey, attrValue string) {}
 
 func (d *DisabledStore) DecrementMetric(name Name, delta uint64) {}
 

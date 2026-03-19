@@ -10,6 +10,7 @@ import (
 	"os"
 	"otelspam/internal/block"
 	"otelspam/internal/metrics"
+	"strconv"
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/klauspost/compress/zstd"
@@ -22,8 +23,9 @@ const ShiftTimestampNow = "now"   // Shifts the input data's timestamp to be the
 const ShiftTimestampMinute = "minute"
 
 type worker struct {
-	id  int
-	log *slog.Logger
+	id       int
+	idStr string
+	log      *slog.Logger
 
 	file dataFile
 
@@ -56,8 +58,9 @@ func newWorker(
 	replayTimeKeeper *block.ReplayTimeKeeper,
 ) *worker {
 	return &worker{
-		id:  id,
-		log: log.With("component", "disk_worker", "id", id, "file", file.Path, "compressed", file.Compressed, "file_index", file.Index, "loop_index", file.LoopIndex),
+		id:       id,
+		idStr: strconv.Itoa(id),
+		log:      log.With("component", "disk_worker", "id", id, "file", file.Path, "compressed", file.Compressed, "file_index", file.Index, "loop_index", file.LoopIndex),
 
 		file:           file,
 		shiftTimestamp: shiftTimestamp,
@@ -120,6 +123,7 @@ func (w *worker) buildReader() (*proto.Reader, func(), error) {
 
 	compressedSpeedRd := NewSpeedReader(data, func(n uint64) {
 		w.metrics.IncrementMetric(metrics.DiskBytesCompressedTotal, n)
+		w.metrics.IncrementMetricWithAttr(metrics.DiskBytesCompressedWorkerTotal, n, "worker_id", w.idStr)
 	})
 
 	var (
@@ -148,6 +152,7 @@ func (w *worker) buildReader() (*proto.Reader, func(), error) {
 	optReader = bufio.NewReaderSize(optReader, 32*1024)
 	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, func(n uint64) {
 		w.metrics.IncrementMetric(metrics.DiskBytesUncompressedTotal, n)
+		w.metrics.IncrementMetricWithAttr(metrics.DiskBytesUncompressedWorkerTotal, n, "worker_id", w.idStr)
 	})
 
 	cleanup := func() {
@@ -201,6 +206,7 @@ func (w *worker) decodeBlock(ctx context.Context, rd *proto.Reader, dec *proto.B
 	cols.MutateIDs(w.file.LoopIndex)
 
 	w.metrics.IncrementMetric(metrics.DiskRowsTotal, uint64(colsRes.Rows()))
+	w.metrics.IncrementMetricWithAttr(metrics.DiskRowsWorkerTotal, uint64(colsRes.Rows()), "worker_id", w.idStr)
 
 	if w.passthrough {
 		// Passthrough for testing max disk read speed.

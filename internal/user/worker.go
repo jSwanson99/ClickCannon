@@ -12,8 +12,9 @@ import (
 )
 
 type Worker struct {
-	id  int
-	log *slog.Logger
+	id       int
+	idStr string
+	log      *slog.Logger
 
 	cfg         *Config
 	workflow    Workflow
@@ -24,6 +25,7 @@ type Worker struct {
 func NewWorker(id int, log *slog.Logger, cfg *Config, workflow Workflow, queryRunner QueryRunner, metrics metrics.Store) *Worker {
 	return &Worker{
 		id:          id,
+		idStr:    strconv.Itoa(id),
 		log:         log, // scheduler sets component/id attributes
 		cfg:         cfg,
 		workflow:    workflow,
@@ -61,7 +63,8 @@ func (w *Worker) Run(ctx context.Context) error {
 			continue
 		} else if err != nil {
 			w.log.Error("query failed", "name", q.Name, "err", err, "sql", q.SQL, "params", q.Params)
-			w.metrics.IncrementMetric(metrics.FailedQueriesTotal, 1)
+			w.metrics.IncrementMetric(metrics.QueriesFailedTotal, 1)
+		w.metrics.IncrementMetricWithAttr(metrics.QueriesFailedWorkerTotal, 1, "worker_id", w.idStr)
 		} else {
 			attr := make(map[string]string, 7)
 			attr["query_name"] = result.Query.Name
@@ -85,7 +88,8 @@ func (w *Worker) Run(ctx context.Context) error {
 			}
 
 			w.metrics.AddMetricPointWithAttributes(metrics.QueryLatencyMicros, uint64(result.Duration.Microseconds()), attr)
-			w.metrics.IncrementMetric(metrics.UserQueriesTotal, 1)
+			w.metrics.IncrementMetric(metrics.QueriesSucceededTotal, 1)
+			w.metrics.IncrementMetricWithAttr(metrics.QueriesSucceededWorkerTotal, 1, "worker_id", w.idStr)
 
 			w.log.Debug("ran query", "name", q.Name, "query_index", result.Query.QueryIndex, "latency", result.Duration, "time_range", result.Query.TimeRange.String(), "time_range_seconds", int(result.Query.TimeRange.Seconds()))
 		}

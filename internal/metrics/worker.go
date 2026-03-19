@@ -14,6 +14,14 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
+// metricKey identifies an aggregated metric. AttrKey/AttrValue are empty for
+// global metrics and non-empty for per-entity metrics (e.g. per-worker counters).
+type metricKey struct {
+	Name      Name
+	AttrKey   string
+	AttrValue string
+}
+
 type Worker struct {
 	log *slog.Logger
 
@@ -30,7 +38,7 @@ type Worker struct {
 
 	metricsQueue chan Entry
 	mu           sync.Mutex
-	metrics      map[Name]uint64
+	metrics      map[metricKey]uint64
 	pointMetrics []Entry
 }
 
@@ -46,7 +54,7 @@ func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytes
 		blockQueue: blockQueue,
 
 		metricsQueue: make(chan Entry, 10_000),
-		metrics:      make(map[Name]uint64),
+		metrics:      make(map[metricKey]uint64),
 		pointMetrics: make([]Entry, 0, 10_000),
 	}
 
@@ -169,21 +177,23 @@ func (w *Worker) applyMetricEntry(m Entry) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if _, ok := w.metrics[m.Name]; !ok && m.Mode != EntryModePoint {
-		w.metrics[m.Name] = 0
+	key := metricKey{Name: m.Name, AttrKey: m.AttrKey, AttrValue: m.AttrValue}
+
+	if _, ok := w.metrics[key]; !ok && m.Mode != EntryModePoint {
+		w.metrics[key] = 0
 	}
 
 	switch m.Mode {
 	case EntryModeIncrement:
-		w.metrics[m.Name] += m.Value
+		w.metrics[key] += m.Value
 	case EntryModeDecrement:
-		if m.Value >= w.metrics[m.Name] {
-			w.metrics[m.Name] = 0
+		if m.Value >= w.metrics[key] {
+			w.metrics[key] = 0
 		} else {
-			w.metrics[m.Name] -= m.Value
+			w.metrics[key] -= m.Value
 		}
 	case EntryModeSet:
-		w.metrics[m.Name] = m.Value
+		w.metrics[key] = m.Value
 	case EntryModePoint:
 		w.pointMetrics = append(w.pointMetrics, m)
 	}
@@ -230,11 +240,15 @@ func (w *Worker) pushMetrics(ctx context.Context) error {
 
 	w.mu.Lock()
 	now := time.Now()
-	for name, value := range w.metrics {
-		err = batch.Append(w.runID, string(name), now, value, w.mergeAttributes(nil))
+	for key, value := range w.metrics {
+		var extraAttr map[string]string
+		if key.AttrKey != "" {
+			extraAttr = map[string]string{key.AttrKey: key.AttrValue}
+		}
+		err = batch.Append(w.runID, string(key.Name), now, value, w.mergeAttributes(extraAttr))
 		if err != nil {
 			w.mu.Unlock()
-			return fmt.Errorf("failed to append metric (%s/%d) to batch: %w", name, value, err)
+			return fmt.Errorf("failed to append metric (%s/%d) to batch: %w", key.Name, value, err)
 		}
 	}
 
@@ -289,6 +303,19 @@ func (w *Worker) IncrementMetric(name Name, delta uint64) {
 	}
 }
 
+func (w *Worker) IncrementMetricWithAttr(name Name, delta uint64, attrKey, attrValue string) {
+	select {
+	case w.metricsQueue <- Entry{
+		Mode:      EntryModeIncrement,
+		Name:      name,
+		AttrKey:   attrKey,
+		AttrValue: attrValue,
+		Value:     delta,
+	}:
+	default:
+	}
+}
+
 func (w *Worker) DecrementMetric(name Name, delta uint64) {
 	select {
 	case w.metricsQueue <- Entry{
@@ -315,7 +342,7 @@ func (w *Worker) GetMetric(name Name) uint64 {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	return w.metrics[name]
+	return w.metrics[metricKey{Name: name}]
 }
 
 func (w *Worker) AddMetricPoint(name Name, value uint64) {

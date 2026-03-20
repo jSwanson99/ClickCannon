@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "ad6kzrh",
-    "generation": 10,
+    "generation": 12,
     "creationTimestamp": "2026-03-20T01:37:39Z",
     "labels": {},
     "annotations": {}
@@ -406,7 +406,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  concat(attributes['query_index'], ': ', attributes['query_name']) as query_name,\n  any(toUInt64OrZero(attributes['perf.p90'])) as \"target p90\",\n  quantile(0.90)(value) as p90,\n  any(toUInt64OrZero(attributes['perf.p50'])) as \"target p50\",\n  quantile(0.5)(value) as p50\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC"
+                        "rawSql": "SELECT\n  concat(attributes['query_index'], ': ', attributes['query_name']) as query_name,\n  any(toUInt64OrZero(attributes['perf.p90'])) as \"target p90\",\n  quantile(0.90)(value) as p90,\n  any(toUInt64OrZero(attributes['perf.p50'])) as \"target p50\",\n  quantile(0.5)(value) as p50\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY any(toUInt64OrZero(attributes['query_index'])) ASC"
                       },
                       "version": "v0"
                     },
@@ -4265,7 +4265,7 @@
           "description": "",
           "id": 45,
           "links": [],
-          "title": "Total Read Bytes Compressed",
+          "title": "Total Insert Bytes Compressed",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4357,7 +4357,7 @@
           "description": "",
           "id": 46,
           "links": [],
-          "title": "Total Read Bytes Uncompressed",
+          "title": "Total Insert Bytes Uncompressed",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5494,7 +5494,7 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-1h",
+      "from": "now-3h",
       "hideTimepicker": false,
       "timezone": "utc",
       "to": "now"
@@ -5710,8 +5710,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "1m",
-            "value": "60"
+            "text": "5m",
+            "value": "300"
           },
           "hide": "dontHide",
           "includeAll": false,

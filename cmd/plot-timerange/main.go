@@ -14,17 +14,17 @@ import (
 )
 
 const (
-	runs = 40000000
+	runs = 4000000
 )
 
 // curve config
 var cfg = user.TimeRangeConfig{
 	Type:  user.TimeRangeLogNormal,
 	Round: 1 * time.Minute,
-	Mean:  26 * time.Hour,
-	Min:   60 * time.Minute,
-	Max:   48 * time.Hour,
-	Sigma: 0.2,
+	Mean:  100 * time.Minute,
+	Min:   30 * time.Second,
+	Max:   72 * time.Hour,
+	Sigma: 0.6,
 }
 
 func newRand(seed string, workerID int) *rand.Rand {

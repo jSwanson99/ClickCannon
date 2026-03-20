@@ -2,9 +2,9 @@
   "apiVersion": "dashboard.grafana.app/v2beta1",
   "kind": "DashboardWithAccessInfo",
   "metadata": {
-    "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 116,
-    "creationTimestamp": "2025-11-10T00:43:32Z",
+    "name": "ad6kzrh",
+    "generation": 10,
+    "creationTimestamp": "2026-03-20T01:37:39Z",
     "labels": {},
     "annotations": {}
   },
@@ -3397,7 +3397,38 @@
                   },
                   "unit": "short"
                 },
-                "overrides": []
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "value preflights_failed_total"
+                    },
+                    "properties": [
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "red",
+                          "mode": "fixed"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "value preflights_ok_total"
+                    },
+                    "properties": [
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "green",
+                          "mode": "fixed"
+                        }
+                      }
+                    ]
+                  }
+                ]
               },
               "options": {
                 "legend": {

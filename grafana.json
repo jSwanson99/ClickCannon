@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "b1087bc8-8419-446d-85be-5a0ca0cafbdb",
-    "generation": 108,
+    "generation": 116,
     "creationTimestamp": "2025-11-10T00:43:32Z",
     "labels": {},
     "annotations": {}
@@ -62,7 +62,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  timestamp,\n  if(\n    metric_name IN ('target_bytes_per_second', 'target_worker_bytes_per_second'),\n    value,\n    (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp))\n    / nullIf(dateDiff('second',\n        lagInFrame(timestamp, 1, timestamp) OVER (PARTITION BY metric_name ORDER BY timestamp),\n        timestamp), 0)\n  ) AS value\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN (\n    'target_bytes_per_second',\n    'target_worker_bytes_per_second',\n    'disk_bytes_uncompressed_total',\n    'disk_bytes_compressed_total',\n    'insert_bytes_compressed_total',\n    'insert_bytes_uncompressed_total'\n  )\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_bytes_uncompressed_total', 'disk_bytes_compressed_total')\n  AND $__timeFilter(time)\nGROUP BY metric_name, time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -77,7 +77,7 @@
           "description": "",
           "id": 1,
           "links": [],
-          "title": "Bytes Throughput",
+          "title": "Disk Bytes Throughput",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -186,9 +186,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_bytes_compressed_total'\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_bytes_compressed_total'\n  AND $__timeFilter(timestamp)\nGROUP BY time"
                       },
                       "version": "v0"
                     },
@@ -280,7 +280,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name, timestamp\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name, timestamp\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -352,7 +352,7 @@
                       }
                     ]
                   },
-                  "unit": "\u00b5s"
+                  "unit": "µs"
                 },
                 "overrides": []
               },
@@ -406,7 +406,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  any(toUInt64OrZero(attributes['perf.p90'])) as \"target p90\",\n  quantile(0.90)(value) as p90,\n  any(toUInt64OrZero(attributes['perf.p50'])) as \"target p50\",\n  quantile(0.5)(value) as p50\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC"
+                        "rawSql": "SELECT\n  concat(attributes['query_index'], ': ', attributes['query_name']) as query_name,\n  any(toUInt64OrZero(attributes['perf.p90'])) as \"target p90\",\n  quantile(0.90)(value) as p90,\n  any(toUInt64OrZero(attributes['perf.p50'])) as \"target p50\",\n  quantile(0.5)(value) as p50\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY p50 DESC"
                       },
                       "version": "v0"
                     },
@@ -473,7 +473,7 @@
                       }
                     ]
                   },
-                  "unit": "\u00b5s"
+                  "unit": "µs"
                 },
                 "overrides": [
                   {
@@ -602,7 +602,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  count(*) as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY query_name ASC\nLIMIT 25"
+                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  count(*) as count\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name\nORDER BY query_name ASC\nLIMIT 25"
                       },
                       "version": "v0"
                     },
@@ -656,7 +656,7 @@
                       }
                     ]
                   },
-                  "unit": "\u00b5s"
+                  "unit": "µs"
                 },
                 "overrides": [
                   {
@@ -739,7 +739,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('block_pool_count', 'block_pool_capacity', 'block_queue_length')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('block_pool_count', 'block_pool_capacity', 'block_queue_length')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -865,7 +865,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  toString(toUInt64(floor(toFloat64(attributes['time_range_seconds']) / 3600))) AS hours,\n  count() AS query_count\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY hours\nORDER BY toUInt64(hours) ASC\n"
+                        "rawSql": "SELECT\n  toString(toUInt64(floor(toFloat64(attributes['time_range_seconds']) / 60))) AS minutes,\n  count() AS query_count\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY minutes\nORDER BY toUInt64(minutes) ASC\n"
                       },
                       "version": "v0"
                     },
@@ -1009,7 +1009,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_cpu_sys_ns_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_cpu_sys_ns_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -1041,7 +1041,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "WITH\n  (SELECT value FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'program_num_cpu' LIMIT 1) AS cpu_count\nSELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) / cpu_count AS value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_cpu_user_ns_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "WITH\n  (SELECT value FROM ${database}.${perf_table} WHERE run_id = '${run_id}' AND metric_name = 'program_num_cpu' LIMIT 1) AS cpu_count\nSELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} / cpu_count as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_cpu_user_ns_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -1167,7 +1167,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  timestamp,\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp))\n  / nullIf(dateDiff('second',\n      lagInFrame(timestamp, 1, timestamp) OVER (PARTITION BY metric_name ORDER BY timestamp),\n      timestamp), 0) AS value\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_rows_total', 'insert_rows_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_rows_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -1182,7 +1182,7 @@
           "description": "",
           "id": 2,
           "links": [],
-          "title": "Rows Throughput",
+          "title": "Disk Rows Throughput",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1293,7 +1293,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL 1 SECOND) as timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_heap_alloc_bytes', 'program_sys_bytes', 'program_next_gc_bytes')\n  AND $__timeFilter(timestamp)\nGROUP BY metric_name, timestamp\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_heap_alloc_bytes', 'program_sys_bytes', 'program_next_gc_bytes')\n  AND $__timeFilter(timestamp)\nGROUP BY metric_name, timestamp\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1419,7 +1419,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_gc_runs_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'program_gc_runs_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -1544,7 +1544,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_num_goroutines')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('program_num_goroutines')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -1635,7 +1635,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS retired,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'blocks_retired_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as retired\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'blocks_retired_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -1667,7 +1667,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp)) AS retired,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_workers_retired_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as retired\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_workers_retired_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -1793,7 +1793,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  (value - lagInFrame(value, 1, value) OVER (PARTITION BY metric_name ORDER BY timestamp))\n  / nullIf(dateDiff('second',\n      lagInFrame(timestamp, 1, timestamp) OVER (PARTITION BY metric_name ORDER BY timestamp),\n      timestamp), 0) AS batches,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_batches_total'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as batches\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_batches_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -1887,98 +1887,6 @@
           }
         }
       },
-      "panel-25": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "${chds}"
-                      },
-                      "group": "grafana-clickhouse-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "editorType": "sql",
-                        "format": 1,
-                        "meta": {
-                          "builderOptions": {
-                            "columns": [],
-                            "database": "",
-                            "limit": 1000,
-                            "mode": "list",
-                            "queryType": "table",
-                            "table": ""
-                          }
-                        },
-                        "pluginVersion": "4.13.0",
-                        "queryType": "table",
-                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_batches_total'\n  AND $__timeFilter(timestamp)"
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 25,
-          "links": [],
-          "title": "Insert batches/s",
-          "vizConfig": {
-            "group": "stat",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "thresholds"
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      }
-                    ]
-                  },
-                  "unit": "sishort"
-                },
-                "overrides": []
-              },
-              "options": {
-                "colorMode": "value",
-                "graphMode": "none",
-                "justifyMode": "auto",
-                "orientation": "auto",
-                "percentChangeColorMode": "standard",
-                "reduceOptions": {
-                  "calcs": [
-                    "lastNotNull"
-                  ],
-                  "fields": "",
-                  "values": false
-                },
-                "showPercentChange": false,
-                "textMode": "auto",
-                "wideLayout": true
-              }
-            },
-            "version": "12.4.0-pre"
-          }
-        }
-      },
       "panel-26": {
         "kind": "Panel",
         "spec": {
@@ -2011,7 +1919,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "-- SELECT\n--   metric_name as name,\n--   quantile(0.5)(value) as count,\n--   toStartOfInterval(timestamp, INTERVAL 60 SECOND) time\n-- FROM\n--   otelspam.perf\n-- WHERE\n--   run_id = '${run_id}'\n--   AND metric_name IN ('queries_succeeded_total', 'queries_failed_total')\n--   AND $__timeFilter(timestamp)\n-- GROUP BY name, time\n-- ORDER BY time ASC\nSELECT\n  toStartOfInterval(timestamp, INTERVAL 60 SECOND) time,\n  toFloat64(count(value))/60 as count\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('query_latency_micros')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) time,\n  toFloat64(count(value))/${metrics_interval_s} as count\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('query_latency_micros')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -2106,6 +2014,309 @@
           }
         }
       },
+      "panel-27": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "",
+                      "kind": "DataQuery",
+                      "spec": {},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 27,
+          "links": [],
+          "title": "Copy",
+          "vizConfig": {
+            "group": "text",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+              },
+              "options": {
+                "code": {
+                  "language": "plaintext",
+                  "showLineNumbers": false,
+                  "showMiniMap": false
+                },
+                "content": "Run: `${run_id}`\n\nMetric: `${metric_name}`",
+                "mode": "markdown"
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-28": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  metric_name,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_bytes_uncompressed_total', 'insert_bytes_compressed_total')\n  AND $__timeFilter(time)\nGROUP BY metric_name, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 28,
+          "links": [],
+          "title": "Insert Bytes Throughput",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "binBps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-29": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_rows_total'\n  AND $__timeFilter(time)\nGROUP BY time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 29,
+          "links": [],
+          "title": "Insert Rows Throughput",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
       "panel-3": {
         "kind": "Panel",
         "spec": {
@@ -2138,7 +2349,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('active_readers', 'active_inserters', 'active_users')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('active_readers', 'active_inserters', 'active_users')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -2232,6 +2443,1198 @@
           }
         }
       },
+      "panel-30": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  attributes['worker_id'] as worker,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_bytes_uncompressed_worker_total'\n  AND $__timeFilter(time)\nGROUP BY worker, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 30,
+          "links": [],
+          "title": "Disk Bytes/s by Worker",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "binBps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-31": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  attributes['worker_id'] as worker,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_bytes_uncompressed_worker_total'\n  AND $__timeFilter(time)\nGROUP BY worker, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 31,
+          "links": [],
+          "title": "Insert Uncompressed Bytes/s by Worker",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "binBps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-32": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  attributes['worker_id'] as worker,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_rows_worker_total'\n  AND $__timeFilter(time)\nGROUP BY worker, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 32,
+          "links": [],
+          "title": "Disk Rows/s by Worker",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-33": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  attributes['worker_id'] as worker,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_rows_worker_total'\n  AND $__timeFilter(time)\nGROUP BY worker, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 33,
+          "links": [],
+          "title": "Insert Rows/s by Worker",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-34": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  concat(metric_name, ' / ', attributes['worker_id']) as series,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('queries_ok_worker_total', 'queries_failed_worker_total')\n  AND $__timeFilter(time)\nGROUP BY series, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 34,
+          "links": [],
+          "title": "Queries/s by Worker",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-35": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('target_worker_bytes_per_second')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 35,
+          "links": [],
+          "title": "Per Worker bytes/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "binBps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "/.*/",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-36": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  metric_name,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('queries_ok_total', 'queries_failed_total')\n  AND $__timeFilter(time)\nGROUP BY metric_name, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 36,
+          "links": [],
+          "title": "Query Success/Failure Rate",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-37": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  metric_name,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('preflights_ok_total', 'preflights_failed_total')\n  AND $__timeFilter(time)\nGROUP BY metric_name, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 37,
+          "links": [],
+          "title": "Preflight Success/Failure Rate",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-38": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  attributes['worker_id'] as worker,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_bytes_compressed_worker_total'\n  AND $__timeFilter(time)\nGROUP BY worker, time\nORDER BY time ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 38,
+          "links": [],
+          "title": "Insert Compressed Bytes/s by Worker",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "binBps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-39": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 1,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "table",
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_batches_total'\n  AND $__timeFilter(timestamp)\nGROUP BY time"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 39,
+          "links": [],
+          "title": "Insert batches/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "sishort"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "median"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
       "panel-4": {
         "kind": "Panel",
         "spec": {
@@ -2264,7 +3667,7 @@
                         },
                         "pluginVersion": "4.11.3",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_rows_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_rows_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -2324,6 +3727,650 @@
           }
         }
       },
+      "panel-40": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_bytes_compressed_total')\n  AND $__timeFilter(timestamp)\nGROUP BY time"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 40,
+          "links": [],
+          "title": "Compressed bytes/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "bytes"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "median"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-41": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_bytes_uncompressed_total')\n  AND $__timeFilter(timestamp)\nGROUP BY time"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 41,
+          "links": [],
+          "title": "Uncompressed bytes/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "bytes"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "median"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-42": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_rows_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 42,
+          "links": [],
+          "title": "Total Rows",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-43": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 1,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "table",
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_rows_total'\n  AND $__timeFilter(timestamp)\nGROUP BY time"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 43,
+          "links": [],
+          "title": "Read rows/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "rowsps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-44": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_bytes_compressed_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 44,
+          "links": [],
+          "title": "Total Read Bytes Compressed",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "bytes"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-45": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_bytes_compressed_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 45,
+          "links": [],
+          "title": "Total Read Bytes Compressed",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "bytes"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
+      "panel-46": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "${chds}"
+                      },
+                      "group": "grafana-clickhouse-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorType": "sql",
+                        "format": 0,
+                        "meta": {
+                          "builderOptions": {
+                            "columns": [],
+                            "database": "",
+                            "limit": 1000,
+                            "mode": "list",
+                            "queryType": "table",
+                            "table": ""
+                          }
+                        },
+                        "pluginVersion": "4.13.0",
+                        "queryType": "timeseries",
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('insert_bytes_uncompressed_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 46,
+          "links": [],
+          "title": "Total Read Bytes Uncompressed",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "bytes"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.4.0-pre"
+          }
+        }
+      },
       "panel-5": {
         "kind": "Panel",
         "spec": {
@@ -2354,9 +4401,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_bytes_uncompressed_total', 'disk_bytes_compressed_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('disk_bytes_uncompressed_total')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
                       },
                       "version": "v0"
                     },
@@ -2371,7 +4418,7 @@
           "description": "",
           "id": 5,
           "links": [],
-          "title": "Total Bytes",
+          "title": "Total Read Bytes Uncompressed",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -2446,9 +4493,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT value FROM otelspam.perf WHERE run_id = '${run_id}' AND metric_name = 'target_bytes_per_second' AND $__timeFilter(timestamp) ORDER BY timestamp DESC LIMIT 1"
+                        "rawSql": "SELECT\n  value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'target_bytes_per_second'\n  AND $__timeFilter(timestamp)\nORDER BY timestamp DESC\nLIMIT 1"
                       },
                       "version": "v0"
                     },
@@ -2538,9 +4585,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_rows_total'\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'insert_rows_total'\n  AND $__timeFilter(timestamp)\nGROUP BY time"
                       },
                       "version": "v0"
                     },
@@ -2630,9 +4677,9 @@
                             "table": ""
                           }
                         },
-                        "pluginVersion": "4.11.3",
+                        "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT\n  (max(value) - min(value)) / nullIf(dateDiff('second', min(timestamp), max(timestamp)), 0)\nFROM otelspam.perf\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_bytes_uncompressed_total'\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'disk_bytes_uncompressed_total'\n  AND $__timeFilter(timestamp)\nGROUP BY time"
                       },
                       "version": "v0"
                     },
@@ -2724,7 +4771,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "table",
-                        "rawSql": "SELECT any(data_type), FROM otelspam.runs WHERE run_id = '${run_id}'"
+                        "rawSql": "SELECT any(data_type), FROM ${database}.${run_table} WHERE run_id = '${run_id}'"
                       },
                       "version": "v0"
                     },
@@ -2807,8 +4854,8 @@
                           "kind": "ElementReference",
                           "name": "panel-9"
                         },
-                        "height": 5,
-                        "width": 2,
+                        "height": 4,
+                        "width": 5,
                         "x": 0,
                         "y": 0
                       }
@@ -2818,22 +4865,9 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
-                          "name": "panel-22"
+                          "name": "panel-27"
                         },
-                        "height": 5,
-                        "width": 3,
-                        "x": 2,
-                        "y": 0
-                      }
-                    },
-                    {
-                      "kind": "GridLayoutItem",
-                      "spec": {
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-3"
-                        },
-                        "height": 5,
+                        "height": 4,
                         "width": 7,
                         "x": 5,
                         "y": 0
@@ -2857,12 +4891,25 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
-                          "name": "panel-19"
+                          "name": "panel-22"
                         },
                         "height": 5,
-                        "width": 12,
+                        "width": 3,
                         "x": 0,
-                        "y": 5
+                        "y": 4
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-3"
+                        },
+                        "height": 5,
+                        "width": 9,
+                        "x": 3,
+                        "y": 4
                       }
                     },
                     {
@@ -2883,12 +4930,25 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
+                          "name": "panel-19"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 0,
+                        "y": 9
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
                           "name": "panel-20"
                         },
                         "height": 6,
                         "width": 24,
                         "x": 0,
-                        "y": 10
+                        "y": 14
                       }
                     }
                   ]
@@ -2910,11 +4970,37 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
+                          "name": "panel-43"
+                        },
+                        "height": 5,
+                        "width": 5,
+                        "x": 0,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
                           "name": "panel-6"
                         },
                         "height": 5,
                         "width": 4,
-                        "x": 0,
+                        "x": 5,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-35"
+                        },
+                        "height": 5,
+                        "width": 3,
+                        "x": 9,
                         "y": 0
                       }
                     },
@@ -2927,7 +5013,7 @@
                         },
                         "height": 5,
                         "width": 4,
-                        "x": 4,
+                        "x": 12,
                         "y": 0
                       }
                     },
@@ -2940,7 +5026,7 @@
                         },
                         "height": 5,
                         "width": 4,
-                        "x": 8,
+                        "x": 16,
                         "y": 0
                       }
                     },
@@ -2949,37 +5035,11 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
-                          "name": "panel-7"
+                          "name": "panel-4"
                         },
                         "height": 5,
-                        "width": 3,
-                        "x": 12,
-                        "y": 0
-                      }
-                    },
-                    {
-                      "kind": "GridLayoutItem",
-                      "spec": {
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-25"
-                        },
-                        "height": 5,
-                        "width": 3,
-                        "x": 15,
-                        "y": 0
-                      }
-                    },
-                    {
-                      "kind": "GridLayoutItem",
-                      "spec": {
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-15"
-                        },
-                        "height": 5,
-                        "width": 6,
-                        "x": 18,
+                        "width": 4,
+                        "x": 20,
                         "y": 0
                       }
                     },
@@ -3014,9 +5074,9 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
-                          "name": "panel-5"
+                          "name": "panel-30"
                         },
-                        "height": 4,
+                        "height": 5,
                         "width": 12,
                         "x": 0,
                         "y": 10
@@ -3027,9 +5087,9 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
-                          "name": "panel-4"
+                          "name": "panel-32"
                         },
-                        "height": 4,
+                        "height": 5,
                         "width": 12,
                         "x": 12,
                         "y": 10
@@ -3040,18 +5100,227 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
-                          "name": "panel-24"
+                          "name": "panel-5"
                         },
-                        "height": 4,
-                        "width": 12,
+                        "height": 5,
+                        "width": 5,
                         "x": 0,
-                        "y": 14
+                        "y": 15
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-44"
+                        },
+                        "height": 5,
+                        "width": 6,
+                        "x": 5,
+                        "y": 15
                       }
                     }
                   ]
                 }
               },
-              "title": "Disk / Inserts"
+              "title": "Disk"
+            }
+          },
+          {
+            "kind": "RowsLayoutRow",
+            "spec": {
+              "collapse": false,
+              "layout": {
+                "kind": "GridLayout",
+                "spec": {
+                  "items": [
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-7"
+                        },
+                        "height": 5,
+                        "width": 4,
+                        "x": 0,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-41"
+                        },
+                        "height": 5,
+                        "width": 4,
+                        "x": 4,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-40"
+                        },
+                        "height": 5,
+                        "width": 4,
+                        "x": 8,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-39"
+                        },
+                        "height": 5,
+                        "width": 4,
+                        "x": 12,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-42"
+                        },
+                        "height": 5,
+                        "width": 8,
+                        "x": 16,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-28"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 0,
+                        "y": 5
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-15"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 12,
+                        "y": 5
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-24"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 0,
+                        "y": 10
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-29"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 12,
+                        "y": 10
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-31"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 0,
+                        "y": 15
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-33"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 12,
+                        "y": 15
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-46"
+                        },
+                        "height": 5,
+                        "width": 6,
+                        "x": 0,
+                        "y": 20
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-45"
+                        },
+                        "height": 5,
+                        "width": 6,
+                        "x": 6,
+                        "y": 20
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-38"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 12,
+                        "y": 20
+                      }
+                    }
+                  ]
+                }
+              },
+              "title": "Insert"
             }
           },
           {
@@ -3080,7 +5349,7 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
-                          "name": "panel-12"
+                          "name": "panel-36"
                         },
                         "height": 5,
                         "width": 12,
@@ -3093,12 +5362,51 @@
                       "spec": {
                         "element": {
                           "kind": "ElementReference",
+                          "name": "panel-37"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 0,
+                        "y": 5
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-12"
+                        },
+                        "height": 5,
+                        "width": 12,
+                        "x": 12,
+                        "y": 5
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-34"
+                        },
+                        "height": 5,
+                        "width": 24,
+                        "x": 0,
+                        "y": 10
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
                           "name": "panel-13"
                         },
                         "height": 25,
                         "width": 24,
                         "x": 0,
-                        "y": 5
+                        "y": 15
                       }
                     },
                     {
@@ -3111,7 +5419,7 @@
                         "height": 3,
                         "width": 24,
                         "x": 0,
-                        "y": 30
+                        "y": 40
                       }
                     },
                     {
@@ -3124,13 +5432,13 @@
                         "height": 9,
                         "width": 24,
                         "x": 0,
-                        "y": 33
+                        "y": 43
                       }
                     }
                   ]
                 }
               },
-              "title": "Users / Queries"
+              "title": "Queries"
             }
           }
         ]
@@ -3155,12 +5463,12 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-3d",
+      "from": "now-1h",
       "hideTimepicker": false,
       "timezone": "utc",
       "to": "now"
     },
-    "title": "OTel Spam",
+    "title": "OTelSpam",
     "variables": [
       {
         "kind": "DatasourceVariable",
@@ -3189,10 +5497,129 @@
             "text": "",
             "value": ""
           },
-          "definition": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 50",
+          "definition": "SHOW DATABASES",
           "hide": "dontHide",
           "includeAll": false,
-          "label": "Run ID",
+          "label": "Database",
+          "multi": false,
+          "name": "database",
+          "options": [],
+          "query": {
+            "datasource": {
+              "name": "${chds}"
+            },
+            "group": "grafana-clickhouse-datasource",
+            "kind": "DataQuery",
+            "spec": {
+              "__legacyStringValue": "SHOW DATABASES"
+            },
+            "version": "v0"
+          },
+          "refresh": "onDashboardLoad",
+          "regex": "",
+          "regexApplyTo": "value",
+          "skipUrlSync": false,
+          "sort": "disabled",
+          "staticOptions": [
+            {
+              "text": "otelspam (Default)",
+              "value": "otelspam"
+            }
+          ]
+        }
+      },
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "",
+            "value": ""
+          },
+          "definition": "SELECT name FROM system.tables WHERE database = '${database}'",
+          "description": "The table that contains information about each test run",
+          "hide": "dontHide",
+          "includeAll": false,
+          "label": "Run Table",
+          "multi": false,
+          "name": "run_table",
+          "options": [],
+          "query": {
+            "datasource": {
+              "name": "${chds}"
+            },
+            "group": "grafana-clickhouse-datasource",
+            "kind": "DataQuery",
+            "spec": {
+              "__legacyStringValue": "SELECT name FROM system.tables WHERE database = '${database}'"
+            },
+            "version": "v0"
+          },
+          "refresh": "onDashboardLoad",
+          "regex": "",
+          "regexApplyTo": "value",
+          "skipUrlSync": false,
+          "sort": "disabled",
+          "staticOptions": [
+            {
+              "text": "runs (Default)",
+              "value": "runs"
+            }
+          ]
+        }
+      },
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "",
+            "value": ""
+          },
+          "definition": "SELECT name FROM system.tables WHERE database = '${database}'",
+          "description": "The table that contains the performance metrics about each test run",
+          "hide": "dontHide",
+          "includeAll": false,
+          "label": "Perf Table",
+          "multi": false,
+          "name": "perf_table",
+          "options": [],
+          "query": {
+            "datasource": {
+              "name": "${chds}"
+            },
+            "group": "grafana-clickhouse-datasource",
+            "kind": "DataQuery",
+            "spec": {
+              "__legacyStringValue": "SELECT name FROM system.tables WHERE database = '${database}'"
+            },
+            "version": "v0"
+          },
+          "refresh": "onDashboardLoad",
+          "regex": "",
+          "regexApplyTo": "value",
+          "skipUrlSync": false,
+          "sort": "disabled",
+          "staticOptions": [
+            {
+              "text": "perf (Default)",
+              "value": "perf"
+            }
+          ]
+        }
+      },
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "",
+            "value": ""
+          },
+          "definition": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM ${database}.${run_table} ORDER BY timestamp DESC LIMIT 50",
+          "hide": "dontHide",
+          "includeAll": false,
+          "label": "Run",
           "multi": false,
           "name": "run_id",
           "options": [],
@@ -3203,7 +5630,7 @@
             "group": "grafana-clickhouse-datasource",
             "kind": "DataQuery",
             "spec": {
-              "__legacyStringValue": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM otelspam.runs ORDER BY timestamp DESC LIMIT 50"
+              "__legacyStringValue": "SELECT run_id as \"value\", if(name == '', substring(run_id, 1, 8), concat(name, ' - ', substring(run_id, 1, 8), ' (', toString(age('minute', timestamp, now64(3))), 'm ago)')) as \"text\" FROM ${database}.${run_table} ORDER BY timestamp DESC LIMIT 50"
             },
             "version": "v0"
           },
@@ -3222,7 +5649,7 @@
             "text": "",
             "value": ""
           },
-          "definition": "SELECT DISTINCT metric_name FROM otelspam.perf",
+          "definition": "SELECT DISTINCT metric_name FROM ${database}.${perf_table}",
           "hide": "dontHide",
           "includeAll": false,
           "label": "Metric Names",
@@ -3236,7 +5663,7 @@
             "group": "grafana-clickhouse-datasource",
             "kind": "DataQuery",
             "spec": {
-              "__legacyStringValue": "SELECT DISTINCT metric_name FROM otelspam.perf"
+              "__legacyStringValue": "SELECT DISTINCT metric_name FROM ${database}.${perf_table}"
             },
             "version": "v0"
           },
@@ -3248,67 +5675,22 @@
         }
       },
       {
-        "kind": "QueryVariable",
-        "spec": {
-          "allowCustomValue": false,
-          "current": {
-            "text": "",
-            "value": ""
-          },
-          "definition": "SELECT min(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
-          "hide": "hideVariable",
-          "includeAll": false,
-          "multi": false,
-          "name": "run_min_time",
-          "options": [],
-          "query": {
-            "datasource": {
-              "name": "${chds}"
-            },
-            "group": "grafana-clickhouse-datasource",
-            "kind": "DataQuery",
-            "spec": {
-              "__legacyStringValue": "SELECT min(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'"
-            },
-            "version": "v0"
-          },
-          "refresh": "onDashboardLoad",
-          "regex": "",
-          "regexApplyTo": "value",
-          "skipUrlSync": false,
-          "sort": "disabled"
-        }
-      },
-      {
-        "kind": "QueryVariable",
+        "kind": "CustomVariable",
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "",
-            "value": ""
+            "text": "1m",
+            "value": "60"
           },
-          "definition": "SELECT max(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'",
-          "hide": "hideVariable",
+          "hide": "dontHide",
           "includeAll": false,
+          "label": "Metrics Interval",
           "multi": false,
-          "name": "run_max_time",
+          "name": "metrics_interval_s",
           "options": [],
-          "query": {
-            "datasource": {
-              "name": "${chds}"
-            },
-            "group": "grafana-clickhouse-datasource",
-            "kind": "DataQuery",
-            "spec": {
-              "__legacyStringValue": "SELECT max(timestamp) FROM otelspam.perf WHERE run_id = '${run_id}'"
-            },
-            "version": "v0"
-          },
-          "refresh": "onDashboardLoad",
-          "regex": "",
-          "regexApplyTo": "value",
+          "query": "1s : 1, 5s : 5, 15s : 15, 30s : 30, 1m : 60, 5m : 300, 10m : 600, 15m : 900, 30m : 1800, 1h : 3600",
           "skipUrlSync": false,
-          "sort": "disabled"
+          "valuesFormat": "csv"
         }
       }
     ]

@@ -43,3 +43,4 @@ trace_data/*native*
 *.log
 sync*.sh
 runloop.sh
+*.sql

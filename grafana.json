@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "ad6kzrh",
-    "generation": 12,
+    "generation": 13,
     "creationTimestamp": "2026-03-20T01:37:39Z",
     "labels": {},
     "annotations": {}
@@ -280,7 +280,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name, timestamp\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  attributes['query_name'] as query_name,\n  quantile(0.5)(value) as value,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) as timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name = 'query_latency_micros'\n  AND $__timeFilter(timestamp)\nGROUP BY query_name, timestamp\nORDER BY timestamp ASC\nLIMIT 10000"
                       },
                       "version": "v0"
                     },
@@ -2979,7 +2979,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  concat(metric_name, ' / ', attributes['worker_id']) as series,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('queries_ok_worker_total', 'queries_failed_worker_total')\n  AND $__timeFilter(time)\nGROUP BY series, time\nORDER BY time ASC"
+                        "rawSql": "SELECT\n  concat(metric_name, ' / ', attributes['worker_id']) as series,\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  (max(value) - min(value)) / ${metrics_interval_s} as value\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('queries_ok_worker_total', 'queries_failed_worker_total')\n  AND $__timeFilter(time)\nGROUP BY series, time\nORDER BY time ASC\nLIMIT 10000"
                       },
                       "version": "v0"
                     },
@@ -5494,7 +5494,7 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-3h",
+      "from": "now-1h",
       "hideTimepicker": false,
       "timezone": "utc",
       "to": "now"
@@ -5710,8 +5710,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "5m",
-            "value": "300"
+            "text": "1m",
+            "value": "60"
           },
           "hide": "dontHide",
           "includeAll": false,

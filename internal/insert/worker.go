@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"otelspam/internal/block"
+	"clickspam/internal/block"
 	"strconv"
-	"otelspam/internal/metrics"
+	"clickspam/internal/metrics"
 	"time"
 
 	"github.com/ClickHouse/ch-go"
@@ -231,7 +231,7 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 		User:       w.chConfig.User,
 		Password:   w.chConfig.Password,
 		Database:   w.chConfig.Database,
-		ClientName: "otelspam",
+		ClientName: "clickspam",
 		Settings: []ch.Setting{
 			{Key: "insert_deduplicate", Value: "0"},
 		},

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"otelspam/internal/block"
-	"otelspam/internal/metrics"
+	"clickspam/internal/block"
+	"clickspam/internal/metrics"
 	"sync"
 	"time"
 )

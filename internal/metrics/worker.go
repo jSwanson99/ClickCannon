@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	"otelspam/internal/block"
+	"clickspam/internal/block"
 	"runtime"
 	"sync"
 	"syscall"

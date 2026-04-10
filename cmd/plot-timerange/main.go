@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"otelspam/internal/user"
+	"clickspam/internal/user"
 )
 
 const (

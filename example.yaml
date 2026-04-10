@@ -1,5 +1,5 @@
 ######################################################################################
-#                             OTelSpam example config                                #
+#                             ClickSpam example config                                #
 # This is less of an example and more of a documentation of all the current options. #
 ######################################################################################
 
@@ -107,7 +107,7 @@ metrics:
   clickhouse_dsn: tcp://localhost:9000
 
   # Database and tables for capturing performance metrics.
-  database: otelspam
+  database: clickspam
   run_table: runs
   metrics_table: perf
   # Controls whether the metrics database/tables are created on startup

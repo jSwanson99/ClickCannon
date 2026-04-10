@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"otelspam/internal/metrics"
+	"clickspam/internal/metrics"
 	"strconv"
 	"time"
 )

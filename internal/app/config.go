@@ -5,10 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"otelspam/internal/disk"
-	"otelspam/internal/insert"
-	"otelspam/internal/metrics"
-	"otelspam/internal/user"
+	"clickspam/internal/disk"
+	"clickspam/internal/insert"
+	"clickspam/internal/metrics"
+	"clickspam/internal/user"
 	"path/filepath"
 
 	"github.com/goccy/go-yaml"
@@ -96,11 +96,11 @@ func LoadConfig() (*Config, string, error) {
 	flag.Parse()
 
 	if configPath == "" {
-		configPath = os.Getenv("OTELSPAM_CONFIG")
+		configPath = os.Getenv("CLICKSPAM_CONFIG")
 	}
 
 	if configPath == "" {
-		return nil, "", errors.New("--config flag or OTELSPAM_CONFIG env var is required")
+		return nil, "", errors.New("--config flag or CLICKSPAM_CONFIG env var is required")
 	}
 
 	configFileName := filepath.Base(configPath)

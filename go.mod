@@ -1,4 +1,4 @@
-module otelspam
+module clickspam
 
 go 1.25.0
 

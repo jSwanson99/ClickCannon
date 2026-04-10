@@ -1,6 +1,6 @@
 <p align="center">
-	<img src=".static/logo.png" alt="otelspam logo" width="400px" align="center">
-	<h1 align="center">OTelSpam</h1>
+	<img src=".static/logo.png" alt="ClickSpam logo" width="400px" align="center">
+	<h1 align="center">ClickSpam</h1>
 </p>
 
 # About
@@ -19,30 +19,30 @@ Copy `example.yaml`, edit it for your environment, and enable the modes you want
 
 Run with Go:
 ```sh
-go run otelspam --config my-config.yaml
+go run clickspam --config my-config.yaml
 ```
 
 Or build a binary first:
 ```sh
-go build -o otelspam . && ./otelspam --config my-config.yaml
+go build -o clickspam . && ./clickspam --config my-config.yaml
 ```
 
 Or with Docker (mount your config and data):
 ```sh
-docker build -t otelspam .
+docker build -t clickspam .
 docker run -v $(pwd)/my-config.yaml:/root/my-config.yaml \
            -v $(pwd)/trace_data:/root/trace_data \
-           otelspam ./otelspam --config /root/my-config.yaml
+           clickspam ./clickspam --config /root/my-config.yaml
 ```
 
 The config path can also be set via environment variable:
 ```sh
-OTELSPAM_CONFIG=my-config.yaml go run otelspam
+CLICKSPAM_CONFIG=my-config.yaml go run clickspam
 ```
 
-By default a random UUID is generated as the run ID each time the program starts. To set a specific run ID, set `OTELSPAM_RUN_ID`:
+By default a random UUID is generated as the run ID each time the program starts. To set a specific run ID, set `CLICKSPAM_RUN_ID`:
 ```sh
-OTELSPAM_RUN_ID=my-run-id go run otelspam --config my-config.yaml
+CLICKSPAM_RUN_ID=my-run-id go run clickspam --config my-config.yaml
 ```
 
 # Preparing Data
@@ -63,7 +63,7 @@ You can split data across multiple files — each file becomes a unit of work fo
 
 # Memory Management
 
-OTelSpam includes two workarounds for memory growth that occurs during long runs. Both are caused by ch-go accumulating allocations over time and are addressed by periodic retirement of the relevant objects.
+ClickSpam includes two workarounds for memory growth that occurs during long runs. Both are caused by ch-go accumulating allocations over time and are addressed by periodic retirement of the relevant objects.
 
 ## Block retirement (`disk.block_retirement_uses`)
 

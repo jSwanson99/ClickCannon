@@ -15,15 +15,15 @@ type LowCard[T comparable] struct {
 }
 
 func (c *LowCard[T]) Append(v T) {
-	panic("custom otelspam LowCardinality type is missing Append implementation")
+	panic("custom clickspam LowCardinality type is missing Append implementation")
 }
 
 func (c *LowCard[T]) AppendArr(v []T) {
-	panic("custom otelspam LowCardinality type is missing AppendArr implementation")
+	panic("custom clickspam LowCardinality type is missing AppendArr implementation")
 }
 
 func (c *LowCard[T]) Row(i int) T {
-	panic("custom otelspam LowCardinality type is missing Row implementation")
+	panic("custom clickspam LowCardinality type is missing Row implementation")
 }
 
 // If the above magic wrapper type fails, you can fall back to this but be sure to set reuse_blocks to false in config.

@@ -5499,7 +5499,7 @@
       "timezone": "utc",
       "to": "now"
     },
-    "title": "OTelSpam",
+    "title": "ClickSpam",
     "variables": [
       {
         "kind": "DatasourceVariable",
@@ -5553,8 +5553,8 @@
           "sort": "disabled",
           "staticOptions": [
             {
-              "text": "otelspam (Default)",
-              "value": "otelspam"
+              "text": "clickspam (Default)",
+              "value": "clickspam"
             }
           ]
         }

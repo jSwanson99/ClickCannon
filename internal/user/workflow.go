@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
-	"otelspam/internal/metrics"
+	"clickspam/internal/metrics"
 	"time"
 )
 

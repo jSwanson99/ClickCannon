@@ -7,7 +7,7 @@ import (
 	"hash/crc64"
 	"log/slog"
 	"math/rand/v2"
-	"otelspam/internal/metrics"
+	"clickspam/internal/metrics"
 	"sync"
 	"time"
 )

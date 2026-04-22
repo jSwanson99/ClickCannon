@@ -71,7 +71,7 @@ disk:
   shift_timestamp: all
 
 insert:
-  enabled: false
+  enabled: true
   threads: 4
   # How many rows per INSERT command. Blocks will be streamed until this limit, then a new INSERT will start.
   # After this limit is reached, the current block will finish sending and then end the INSERT, therefore it's not

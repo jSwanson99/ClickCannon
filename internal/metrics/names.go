@@ -24,21 +24,27 @@ const (
 	InsertBytesCompressedWorkerTotal   Name = "insert_bytes_compressed_worker_total"
 	InsertBatchesWorkerTotal           Name = "insert_batches_worker_total"
 
+	// Generate counters
+
+	GenerateRowsTotal        Name = "generate_rows_total"
+	GenerateBlocksTotal      Name = "generate_blocks_total"
+	GenerateRowsWorkerTotal  Name = "generate_rows_worker_total"
+
 	// Per-worker disk read counters (attribute: worker_id)
 	DiskRowsWorkerTotal              Name = "disk_rows_worker_total"
 	DiskBytesCompressedWorkerTotal   Name = "disk_bytes_compressed_worker_total"
 	DiskBytesUncompressedWorkerTotal Name = "disk_bytes_uncompressed_worker_total"
 
 	// Per-worker user query counters (attribute: worker_id)
-	QueriesOkWorkerTotal Name = "queries_ok_worker_total"
-	QueriesFailedWorkerTotal    Name = "queries_failed_worker_total"
-	BlocksRetiredTotal           Name = "blocks_retired_total"
-	InsertWorkersRetiredTotal    Name = "insert_workers_retired_total"
+	QueriesOkWorkerTotal      Name = "queries_ok_worker_total"
+	QueriesFailedWorkerTotal  Name = "queries_failed_worker_total"
+	BlocksRetiredTotal        Name = "blocks_retired_total"
+	InsertWorkersRetiredTotal Name = "insert_workers_retired_total"
 
 	// User query counters
 
-	QueriesOkTotal Name = "queries_ok_total"
-	QueriesFailedTotal    Name = "queries_failed_total"
+	QueriesOkTotal     Name = "queries_ok_total"
+	QueriesFailedTotal Name = "queries_failed_total"
 
 	// Preflight query counters
 
@@ -54,12 +60,14 @@ const (
 
 	// Gauges
 
-	TargetBytesPerSecond       Name = "target_bytes_per_second"
-	TargetWorkerBytesPerSecond Name = "target_worker_bytes_per_second"
+	TargetBytesPerSecond        Name = "target_bytes_per_second"
+	TargetGenerateRowsPerSecond Name = "target_generate_rows_per_second"
+	TargetWorkerBytesPerSecond  Name = "target_worker_bytes_per_second"
 
-	ActiveReaders   Name = "active_readers"
-	ActiveInserters Name = "active_inserters"
-	ActiveUsers     Name = "active_users"
+	ActiveGenerators Name = "active_generators"
+	ActiveReaders    Name = "active_readers"
+	ActiveInserters  Name = "active_inserters"
+	ActiveUsers      Name = "active_users"
 
 	BlockPoolCount    Name = "block_pool_count"
 	BlockPoolCapacity Name = "block_pool_capacity"

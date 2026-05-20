@@ -39,6 +39,7 @@ trace_data/*native*
 *.yaml
 *.csv
 !example.yaml
+!profiles/*.yaml
 *.har
 *.log
 sync*.sh

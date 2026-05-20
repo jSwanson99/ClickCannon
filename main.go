@@ -1,18 +1,19 @@
 package main
 
 import (
+	"clickspam/internal/app"
+	"clickspam/internal/block"
+	"clickspam/internal/disk"
+	"clickspam/internal/generate"
+	"clickspam/internal/insert"
+	"clickspam/internal/metrics"
+	"clickspam/internal/user"
 	"context"
 	"errors"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"clickspam/internal/app"
-	"clickspam/internal/block"
-	"clickspam/internal/disk"
-	"clickspam/internal/insert"
-	"clickspam/internal/metrics"
-	"clickspam/internal/user"
 	"sync"
 	"syscall"
 )
@@ -43,29 +44,54 @@ func main() {
 		"config_file", cfgFileName,
 		"run_name", runName,
 		"disk_enabled", cfg.Disk.Enabled,
-		"disk_threads", cfg.Disk.Threads,
-		"mb_per_second_limit", cfg.Disk.MiBytesPerSecondLimit,
-		"reuse_blocks", cfg.Disk.ReuseBlocks,
+		"generate_enabled", cfg.Generate.Enabled,
 		"insert_enabled", cfg.Insert.Enabled,
 		"insert_threads", cfg.Insert.Threads,
 		"batch_size", cfg.Insert.BatchSize,
 	)
 
-	blocksToAlloc := (cfg.Disk.Threads + cfg.Insert.Threads) * 2
+	// Determine source thread count for block pool sizing
+	sourceThreads := cfg.Disk.Threads
+	if cfg.Generate.Enabled {
+		sourceThreads = cfg.Generate.Threads
+	}
+
+	blocksToAlloc := (sourceThreads + cfg.Insert.Threads) * 2
 	insertQueue := make(chan block.SharedColumns, blocksToAlloc)
 	var blockCreateFunc func() block.SharedColumns
-	if cfg.App.DataType == app.ConfigDataTypeLogs {
-		blockCreateFunc = func() block.SharedColumns {
-			return block.NewLogsSharedColumns(cfg.Disk.HasTimestampTime)
+
+	if cfg.Generate.Enabled {
+		// Generate mode: use generate-specific column types with working Append
+		if cfg.App.DataType == app.ConfigDataTypeLogs {
+			blockCreateFunc = func() block.SharedColumns {
+				return generate.NewGenLogsColumns()
+			}
+		} else if cfg.App.DataType == app.ConfigDataTypeTraces {
+			blockCreateFunc = func() block.SharedColumns {
+				return generate.NewGenTracesColumns()
+			}
 		}
-	} else if cfg.App.DataType == app.ConfigDataTypeTraces {
-		blockCreateFunc = func() block.SharedColumns {
-			return block.NewTracesSharedColumns()
+	} else {
+		// Disk mode: use decode-oriented column types
+		if cfg.App.DataType == app.ConfigDataTypeLogs {
+			blockCreateFunc = func() block.SharedColumns {
+				return block.NewLogsSharedColumns(cfg.Disk.HasTimestampTime)
+			}
+		} else if cfg.App.DataType == app.ConfigDataTypeTraces {
+			blockCreateFunc = func() block.SharedColumns {
+				return block.NewTracesSharedColumns()
+			}
 		}
 	}
 
 	var blockPool block.Pool
-	if cfg.Disk.ReuseBlocks {
+	if cfg.Generate.Enabled {
+		if cfg.Generate.ReuseBlocks {
+			blockPool = block.NewBlockPool(blocksToAlloc, cfg.Generate.BlockRetirementUses, blockCreateFunc)
+		} else {
+			blockPool = block.NewGarbageBlockPool(blockCreateFunc)
+		}
+	} else if cfg.Disk.ReuseBlocks {
 		blockPool = block.NewBlockPool(blocksToAlloc, cfg.Disk.BlockRetirementUses, blockCreateFunc)
 	} else {
 		blockPool = block.NewGarbageBlockPool(blockCreateFunc)
@@ -83,7 +109,7 @@ func main() {
 		if runAttr == nil {
 			runAttr = make(map[string]string)
 		}
-		m, metricsErr := metrics.NewWorker(log, runID, runName, cfg.App.DataType, targetBytesPerSecond, runAttr, &cfg.Metrics, blockPool, insertQueue)
+		m, metricsErr := metrics.NewWorker(log, runID, runName, cfg.App.DataType, targetBytesPerSecond, cfg.Generate.RowsPerSecond, runAttr, &cfg.Metrics, blockPool, insertQueue)
 		if metricsErr != nil {
 			log.Error("failed to create metrics worker", "err", metricsErr)
 			return
@@ -100,12 +126,21 @@ func main() {
 		metricsStore = metrics.NewDisabledStore()
 	}
 
-	var diskWg sync.WaitGroup
-	diskCtx, cancelDisk := context.WithCancel(context.Background())
-	if cfg.Disk.Enabled {
+	var sourceWg sync.WaitGroup
+	sourceCtx, cancelSource := context.WithCancel(context.Background())
+	if cfg.Generate.Enabled {
+		gs := generate.NewScheduler(log, &cfg.Generate, cfg.App.Seed, cfg.App.DataType, blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
+		sourceWg.Go(func() {
+			gsErr := gs.Run(sourceCtx)
+			if gsErr != nil && !errors.Is(gsErr, context.Canceled) {
+				log.Error("generate scheduler error", "err", gsErr)
+			}
+			close(insertQueue)
+		})
+	} else if cfg.Disk.Enabled {
 		dws := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
-		diskWg.Go(func() {
-			dwsErr := dws.Run(diskCtx)
+		sourceWg.Go(func() {
+			dwsErr := dws.Run(sourceCtx)
 			if dwsErr != nil && !errors.Is(dwsErr, context.Canceled) {
 				log.Error("disk worker scheduler error", "err", dwsErr)
 			}
@@ -118,8 +153,8 @@ func main() {
 	var insertWg sync.WaitGroup
 	insertCtx, cancelInsert := context.WithCancel(context.Background())
 	if cfg.Insert.Enabled {
-		if !cfg.Disk.Enabled {
-			log.Warn("insert is enabled but disk is disabled, insert workers will not start")
+		if !cfg.Disk.Enabled && !cfg.Generate.Enabled {
+			log.Warn("insert is enabled but no data source (disk/generate) is enabled, insert workers will not start")
 		} else {
 			iws := insert.NewScheduler(log, &cfg.Insert, cfg.GetInsertTable(), blockCreateFunc, blockPool, insertQueue, metricsStore)
 			insertWg.Go(func() {
@@ -145,7 +180,7 @@ func main() {
 
 	done := make(chan struct{})
 	go func() {
-		diskWg.Wait()
+		sourceWg.Wait()
 		insertWg.Wait()
 		userWg.Wait()
 		close(done)
@@ -157,8 +192,8 @@ func main() {
 	case <-done:
 	}
 
-	cancelDisk()
-	diskWg.Wait()
+	cancelSource()
+	sourceWg.Wait()
 	cancelInsert()
 	insertWg.Wait()
 	cancelUser()

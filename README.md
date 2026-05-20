@@ -5,13 +5,14 @@
 
 # About
 
-A program for replaying OTel data into ClickHouse and simulating concurrent user queries against it. Three independent modes can be run in any combination:
+A program for replaying OTel data into ClickHouse and simulating concurrent user queries against it. Four independent modes can be run in any combination:
 
 - **disk** — reads `.native`/`.native.zst` files from disk and feeds them to the insert workers
+- **generate** — generates synthetic OTel data (logs or traces) from a code-defined profile and feeds it to the insert workers
 - **insert** — inserts data into ClickHouse via ch-go
 - **user** — simulates concurrent users running parameterized queries against ClickHouse
 
-Each mode is independently toggled via `enabled` in the config. You can run all three at once to load data and benchmark queries simultaneously, or run `user` alone against an already-populated table.
+`disk` and `generate` are mutually exclusive data sources — enable one or the other. Each mode is independently toggled via `enabled` in the config. You can run `generate` + `insert` to load synthetic data, `disk` + `insert` to replay existing data, or `user` alone against an already-populated table.
 
 # Usage
 
@@ -45,9 +46,42 @@ By default a random UUID is generated as the run ID each time the program starts
 CLICKSPAM_RUN_ID=my-run-id go run clickspam --config my-config.yaml
 ```
 
-# Preparing Data
+# Data Sources
 
-Data must be exported from ClickHouse in Native format. Files must be named with the extension `.native` or `.native.zst`. Place them in a directory and point `disk.logs_path` or `disk.traces_path` at it.
+ClickSpam supports two data sources: disk replay and synthetic generation. Use one or the other.
+
+## Generate (synthetic data)
+
+The generate mode creates synthetic OTel data directly — no pre-exported files needed. Data shape is defined by a code-built **profile** registered at init() time in `internal/generate/profile_*.go`. `otel_demo` is a built-in profile for generic OTel demo data. Pick one in YAML:
+
+```yaml
+generate:
+  enabled: true
+  threads: 8
+  rows_per_block: 8192
+  rows_per_second: 0  # 0 = unlimited
+  reuse_blocks: true
+  block_retirement_uses: 50
+  # Name of a code-defined profile. Defaults to otel_demo.
+  profile: otel_demo
+  # Trace-specific settings (only used when data_type: traces)
+  traces:
+    spans_per_trace_min: 3
+    spans_per_trace_max: 12
+    max_depth: 5
+    duration_min_us: 1000
+    duration_max_us: 5000000
+```
+
+Adding a new generator profile means writing one Go file that calls `generate.RegisterProfile("name", builder)` from `init()`.
+
+Generators available: `Pool/V`, `Const`, `RandStr(n).Prefix(p)`, `Hex(n).Prefix(p)`, `UUID()`, `IP().AsU32()/AsHex()`, `Int(min, max).Prefix(p)`, `Float(max).Precision(n).Prefix(p)`, `Bool(trueProb)`. Map columns use probabilistic key presence — each key has a per-row probability of appearing. `KP` produces unique keys (prefix + random hex) for thrashing LowCardinality dictionaries.
+
+When generating traces, each worker independently produces complete traces with correlated `TraceId`/`SpanId`/`ParentSpanId` hierarchies. All randomness is seeded from `app.seed` for reproducible runs.
+
+## Disk (replay from files)
+
+Replays pre-exported data from disk.
 
 Export logs:
 ```sql

@@ -24,7 +24,6 @@ import (
 type Profile struct {
 	Name string
 
-	// Common (both schemas)
 	ServiceName   Gen
 	ScopeName     Gen
 	ScopeVersion  Gen
@@ -47,11 +46,11 @@ type Profile struct {
 // NewProfile returns an empty Profile. Use the With* builders or set fields directly.
 func NewProfile(name string) *Profile { return &Profile{Name: name} }
 
-func (p *Profile) WithServiceName(g Gen) *Profile     { p.ServiceName = g; return p }
-func (p *Profile) WithScopeName(g Gen) *Profile       { p.ScopeName = g; return p }
-func (p *Profile) WithScopeVersion(g Gen) *Profile    { p.ScopeVersion = g; return p }
+func (p *Profile) WithServiceName(g Gen) *Profile       { p.ServiceName = g; return p }
+func (p *Profile) WithScopeName(g Gen) *Profile         { p.ScopeName = g; return p }
+func (p *Profile) WithScopeVersion(g Gen) *Profile      { p.ScopeVersion = g; return p }
 func (p *Profile) WithResourceAttrs(m *MapGen) *Profile { p.ResourceAttrs = m; return p }
-func (p *Profile) WithScopeAttrs(m *MapGen) *Profile  { p.ScopeAttrs = m; return p }
+func (p *Profile) WithScopeAttrs(m *MapGen) *Profile    { p.ScopeAttrs = m; return p }
 
 func (p *Profile) WithSeverityText(g Gen) *Profile { p.SeverityText = g; return p }
 func (p *Profile) WithBody(g Gen) *Profile         { p.Body = g; return p }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"clickspam/internal/disk"
+	"clickspam/internal/generate"
 	"clickspam/internal/insert"
 	"clickspam/internal/metrics"
 	"clickspam/internal/user"
@@ -33,11 +34,12 @@ type Config struct {
 		Seed         string `yaml:"seed"`
 	} `yaml:"app"`
 
-	Pprof   PprofConfig    `yaml:"pprof"`
-	Disk    disk.Config    `yaml:"disk"`
-	Insert  insert.Config  `yaml:"insert"`
-	Metrics metrics.Config `yaml:"metrics"`
-	User    user.Config    `yaml:"user"`
+	Pprof    PprofConfig      `yaml:"pprof"`
+	Disk     disk.Config      `yaml:"disk"`
+	Generate generate.Config  `yaml:"generate"`
+	Insert   insert.Config    `yaml:"insert"`
+	Metrics  metrics.Config   `yaml:"metrics"`
+	User     user.Config      `yaml:"user"`
 }
 
 func (c Config) GetDataFolder() string {
@@ -71,8 +73,16 @@ func (c Config) Validate() error {
 		return errors.New("app: data_type must be one of: logs, traces")
 	}
 
+	if c.Disk.Enabled && c.Generate.Enabled {
+		return errors.New("disk and generate cannot both be enabled; use one or the other")
+	}
+
 	if err := c.Disk.Validate(); err != nil {
 		return fmt.Errorf("disk: %w", err)
+	}
+
+	if err := c.Generate.Validate(); err != nil {
+		return fmt.Errorf("generate: %w", err)
 	}
 
 	if err := c.Insert.Validate(); err != nil {

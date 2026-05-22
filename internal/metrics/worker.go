@@ -1,11 +1,11 @@
 package metrics
 
 import (
+	"clickspam/internal/block"
 	"context"
 	"fmt"
 	"log/slog"
 	"maps"
-	"clickspam/internal/block"
 	"runtime"
 	"sync"
 	"syscall"
@@ -30,9 +30,11 @@ type Worker struct {
 	conn      driver.Conn
 	insertSQL string
 
-	dataType             string
-	targetBytesPerSecond uint64
-	configAttributes     map[string]string
+	dataType                    string
+	targetBytesPerSecond        uint64
+	targetGenerateRowsPerSecond uint64
+
+	configAttributes map[string]string
 
 	blockPool  block.Pool
 	blockQueue chan block.SharedColumns
@@ -43,13 +45,14 @@ type Worker struct {
 	pointMetrics []Entry
 }
 
-func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytesPerSecond uint64, runAttr map[string]string, cfg *Config, blockPool block.Pool, blockQueue chan block.SharedColumns) (*Worker, error) {
+func NewWorker(log *slog.Logger, runID, configName, dataType string, targetBytesPerSecond, targetGenerateRowsPerSecond uint64, runAttr map[string]string, cfg *Config, blockPool block.Pool, blockQueue chan block.SharedColumns) (*Worker, error) {
 	w := Worker{
-		log:                  log.With("component", "metrics_worker", "data_type", dataType),
-		runID:                runID,
-		dataType:             dataType,
-		targetBytesPerSecond: targetBytesPerSecond,
-		configAttributes:     runAttr,
+		log:                         log.With("component", "metrics_worker", "data_type", dataType),
+		runID:                       runID,
+		dataType:                    dataType,
+		targetBytesPerSecond:        targetBytesPerSecond,
+		targetGenerateRowsPerSecond: targetGenerateRowsPerSecond,
+		configAttributes:            runAttr,
 
 		blockPool:  blockPool,
 		blockQueue: blockQueue,
@@ -208,6 +211,7 @@ func (w *Worker) collectInternalMetrics() {
 	w.metrics[metricKey{Name: BlockQueueLength}] = uint64(queueLen)
 	w.metrics[metricKey{Name: BlocksRetiredTotal}] = uint64(retired)
 	w.metrics[metricKey{Name: TargetBytesPerSecond}] = w.targetBytesPerSecond
+	w.metrics[metricKey{Name: TargetGenerateRowsPerSecond}] = w.targetGenerateRowsPerSecond
 	w.metrics[metricKey{Name: ProgramHeapAllocBytes}] = ms.HeapAlloc
 	w.metrics[metricKey{Name: ProgramSysBytes}] = ms.Sys
 	w.metrics[metricKey{Name: ProgramNumGoroutines}] = uint64(numGoroutines)

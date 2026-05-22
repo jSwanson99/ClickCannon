@@ -27,6 +27,38 @@ pprof:
   #   curl -s http://localhost:6060/debug/pprof/heap > heap.prof && go tool pprof heap.prof
   address: ""
 
+# Generate mode: synthetic data generation (mutually exclusive with disk)
+# Produces OTel data directly from a code-defined generator profile.
+generate:
+  enabled: false
+  # How many generator threads
+  threads: 2
+  # How many rows to generate per block before pushing to the insert queue
+  rows_per_block: 10000
+  # Rate limit in rows per second across all threads. 0 = unlimited.
+  rows_per_second: 10000
+  # Block reuse settings (same concept as disk.reuse_blocks)
+  reuse_blocks: true
+  block_retirement_uses: 50
+
+  # Name of a code-defined profile registered in internal/generate.
+  # Built-in: otel_demo. Defaults to otel_demo if omitted.
+  # To add your own, drop a profile_<name>.go in internal/generate that calls
+  # generate.RegisterProfile("<name>", ...) from init() and reference it here.
+  # profile: otel_demo
+
+  # Trace-specific settings (only used when data_type: traces)
+  traces:
+    # Number of spans per trace (uniform random between min and max)
+    spans_per_trace_min: 3
+    spans_per_trace_max: 12
+    # Maximum depth of trace tree
+    max_depth: 5
+    # Span duration range in microseconds
+    duration_min_us: 1000
+    duration_max_us: 5000000
+
+# Disk mode: replay pre-exported .native/.native.zst files (mutually exclusive with generate)
 disk:
   enabled: true
   threads: 4

@@ -1,7 +1,4 @@
-<p align="center">
-	<img src=".static/logo.png" alt="ClickSpam logo" width="400px" align="center">
-	<h1 align="center">ClickSpam</h1>
-</p>
+<h1 align="center">ClickSpam</h1>
 
 # About
 

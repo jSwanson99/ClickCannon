@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.4.0
 
 ### Breaking Changes
 
@@ -30,13 +30,26 @@
 
 ### New Features
 
+- **Synthetic data generation (`generate` mode)** — A new `generate` mode produces OTel logs or traces directly in-process and feeds them to the insert workers, removing the need to pre-export `.native` files. Data shape is defined by code-built **profiles** (built-in: `otel_demo`) registered at `init()` time, so adding a new shape is one Go file. Configurable threads, rows-per-block, rows-per-second rate limit, and block reuse/retirement. Trace generation produces complete traces with correlated `TraceId`/`SpanId`/`ParentSpanId` hierarchies and configurable spans-per-trace, depth, and duration ranges. All randomness is seeded from `app.seed` for reproducible runs. `generate` and `disk` are mutually exclusive data sources.
 - **Insert bytes uncompressed metric** — `insert_bytes_uncompressed_total` now tracks the uncompressed data size of inserts (from ClickHouse's `InsertedBytes` ProfileEvent), alongside the existing `insert_bytes_compressed_total` for wire bytes.
 - **Per-worker insert metrics** — Four new counters track insert activity broken down by worker: `insert_rows_worker_total`, `insert_bytes_uncompressed_worker_total`, `insert_bytes_compressed_worker_total`, `insert_batches_worker_total`. Filter or group by `attributes['worker_id']` in queries.
 - **Per-worker disk read metrics** — Same pattern for disk readers: `disk_rows_worker_total`, `disk_bytes_compressed_worker_total`, `disk_bytes_uncompressed_worker_total`.
 - **Per-worker user query metrics** — `queries_ok_worker_total`, `queries_failed_worker_total`, keyed by `attributes['worker_id']`.
 - **Grafana dashboard query improvements** — All counter panels now compute per-second rates using `lagInFrame` with proper `PARTITION BY metric_name`, replacing the old pre-computed rate metrics.
-- **Query index attribute for queries** - the query latency metric now stores `query_index` in the attributes, perhaps useful for sorting a sequence of queries in a chart
+- **Query index attribute for queries** — The query latency metric now stores `query_index` in the attributes, perhaps useful for sorting a sequence of queries in a chart.
 - **Preflight query counters** — `preflights_ok_total` and `preflights_failed_total` count individual preflight query executions.
+- **Configurable metric attributes** — The metrics worker config now accepts an `attributes` map of key-value pairs that are attached to the run record and every emitted metric point. Useful for tagging runs by environment, team, hardware, etc.
+- **Configurable log-normal sigma** — `log_normal` time ranges now accept a `sigma` field controlling spread and tail weight. Defaults to 0.5; typical range 0.3–1.5.
+
+### Bug Fixes
+
+- Fixed a bug where metrics could be lost between the send and reset steps of the metrics worker loop.
+
+### Developer Experience
+
+- **`plot-timerange` debug command** — Added a `cmd/plot-timerange` program that outputs sampled time range values from the configured distribution, useful for tuning `log_normal`/`exponential` parameters before running a full workload.
+
+---
 
 ## v0.3.0
 

@@ -3,7 +3,7 @@
   "kind": "DashboardWithAccessInfo",
   "metadata": {
     "name": "ad6kzrh",
-    "generation": 14,
+    "generation": 19,
     "creationTimestamp": "2026-03-20T01:37:39Z",
     "labels": {},
     "annotations": {}
@@ -2349,7 +2349,7 @@
                         },
                         "pluginVersion": "4.13.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n  metric_name,\n  value,\n  timestamp\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('active_generators', 'active_readers', 'active_inserters', 'active_users')\n  AND $__timeFilter(timestamp)\nORDER BY timestamp ASC"
+                        "rawSql": "SELECT\n  toStartOfInterval(timestamp, INTERVAL ${metrics_interval_s} SECOND) AS time,\n  metric_name,\n  max(value) as count\nFROM\n  ${database}.${perf_table}\nWHERE\n  run_id = '${run_id}'\n  AND metric_name IN ('active_generators', 'active_readers', 'active_inserters', 'active_users')\n  AND $__timeFilter(timestamp)\nGROUP BY time, metric_name\nORDER BY time ASC"
                       },
                       "version": "v0"
                     },
@@ -3640,7 +3640,7 @@
                       }
                     ]
                   },
-                  "unit": "sishort"
+                  "unit": "none"
                 },
                 "overrides": []
               },
@@ -4480,7 +4480,7 @@
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
                   "calcs": [
-                    "lastNotNull"
+                    "median"
                   ],
                   "fields": "",
                   "values": false
@@ -4817,7 +4817,7 @@
           "description": "",
           "id": 54,
           "links": [],
-          "title": "Disk Rows Throughput",
+          "title": "Generator Rows Throughput",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -4943,7 +4943,7 @@
           "description": "",
           "id": 56,
           "links": [],
-          "title": "Disk Rows/s by Worker",
+          "title": "Generator Rows/s by Worker",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -6101,12 +6101,12 @@
         "1d"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-5m",
+      "from": "now-1h",
       "hideTimepicker": false,
       "timezone": "utc",
       "to": "now"
     },
-    "title": "OTelSpam",
+    "title": "ClickSpam",
     "variables": [
       {
         "kind": "DatasourceVariable",
@@ -6317,8 +6317,8 @@
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "5s",
-            "value": "5"
+            "text": "5m",
+            "value": "300"
           },
           "hide": "dontHide",
           "includeAll": false,

@@ -5,27 +5,27 @@ import (
 	"fmt"
 	"log/slog"
 
-	"clickspam/internal/block"
-	"clickspam/internal/metrics"
+	"clickcannon/internal/block"
+	"clickcannon/internal/metrics"
 
 	"golang.org/x/time/rate"
 )
 
 // worker generates synthetic data blocks and pushes them to the insert queue.
 type worker struct {
-	id          int
-	idStr       string
-	log         *slog.Logger
-	rng         *Rng
-	blockPool   block.Pool
-	insertQueue chan<- block.SharedColumns
-	metrics     metrics.Store
-	limiter     *rate.Limiter // nil if unlimited
+	id           int
+	idStr        string
+	log          *slog.Logger
+	rng          *Rng
+	blockPool    block.Pool
+	insertQueue  chan<- block.SharedColumns
+	metrics      metrics.Store
+	limiter      *rate.Limiter // nil if unlimited
 	rowsPerBlock int
-	dataType    string
-	passthrough bool // when true, blocks are released immediately (benchmarks generation throughput)
+	dataType     string
+	passthrough  bool // when true, blocks are released immediately (benchmarks generation throughput)
 
-	logsFiller  *LogsFiller
+	logsFiller   *LogsFiller
 	tracesFiller *TracesFiller
 }
 

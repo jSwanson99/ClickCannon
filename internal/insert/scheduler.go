@@ -1,11 +1,11 @@
 package insert
 
 import (
+	"clickcannon/internal/block"
+	"clickcannon/internal/metrics"
 	"context"
 	"errors"
 	"log/slog"
-	"clickspam/internal/block"
-	"clickspam/internal/metrics"
 	"sync"
 	"time"
 )

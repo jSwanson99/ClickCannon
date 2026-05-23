@@ -6106,7 +6106,7 @@
       "timezone": "utc",
       "to": "now"
     },
-    "title": "ClickSpam",
+    "title": "ClickCannon",
     "variables": [
       {
         "kind": "DatasourceVariable",
@@ -6160,8 +6160,8 @@
           "sort": "disabled",
           "staticOptions": [
             {
-              "text": "otelspam (Default)",
-              "value": "otelspam"
+              "text": "clickcannon (Default)",
+              "value": "clickcannon"
             }
           ]
         }

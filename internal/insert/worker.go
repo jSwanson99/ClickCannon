@@ -1,15 +1,15 @@
 package insert
 
 import (
+	"clickcannon/internal/block"
+	"clickcannon/internal/metrics"
 	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"clickspam/internal/block"
 	"strconv"
-	"clickspam/internal/metrics"
 	"time"
 
 	"github.com/ClickHouse/ch-go"
@@ -19,9 +19,9 @@ import (
 var errWorkerRetired = errors.New("worker retired")
 
 type worker struct {
-	id       int
+	id    int
 	idStr string
-	log      *slog.Logger
+	log   *slog.Logger
 
 	batchSize               int
 	workerRetirementBatches int
@@ -56,9 +56,9 @@ func newWorker(
 	}
 
 	w := worker{
-		id:       id,
+		id:    id,
 		idStr: strconv.Itoa(id),
-		log:      log.With("component", "insert_worker", "id", id),
+		log:   log.With("component", "insert_worker", "id", id),
 
 		batchSize:               config.BatchSize,
 		workerRetirementBatches: config.WorkerRetirementBatches,
@@ -231,7 +231,7 @@ func (w *worker) buildClient(ctx context.Context) (*ch.Client, func(), error) {
 		User:       w.chConfig.User,
 		Password:   w.chConfig.Password,
 		Database:   w.chConfig.Database,
-		ClientName: "clickspam",
+		ClientName: "clickcannon",
 		Settings: []ch.Setting{
 			{Key: "insert_deduplicate", Value: "0"},
 		},

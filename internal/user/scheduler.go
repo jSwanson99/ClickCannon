@@ -1,13 +1,13 @@
 package user
 
 import (
+	"clickcannon/internal/metrics"
 	"context"
 	"errors"
 	"fmt"
 	"hash/crc64"
 	"log/slog"
 	"math/rand/v2"
-	"clickspam/internal/metrics"
 	"sync"
 	"time"
 )

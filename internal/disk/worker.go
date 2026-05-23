@@ -2,14 +2,14 @@ package disk
 
 import (
 	"bufio"
+	"clickcannon/internal/block"
+	"clickcannon/internal/metrics"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"clickspam/internal/block"
-	"clickspam/internal/metrics"
 	"strconv"
 
 	"github.com/ClickHouse/ch-go/proto"

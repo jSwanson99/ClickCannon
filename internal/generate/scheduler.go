@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"sync"
 
-	"clickspam/internal/block"
-	"clickspam/internal/metrics"
+	"clickcannon/internal/block"
+	"clickcannon/internal/metrics"
 
 	"golang.org/x/time/rate"
 )

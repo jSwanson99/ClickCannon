@@ -1,13 +1,13 @@
 package main
 
 import (
-	"clickspam/internal/app"
-	"clickspam/internal/block"
-	"clickspam/internal/disk"
-	"clickspam/internal/generate"
-	"clickspam/internal/insert"
-	"clickspam/internal/metrics"
-	"clickspam/internal/user"
+	"clickcannon/internal/app"
+	"clickcannon/internal/block"
+	"clickcannon/internal/disk"
+	"clickcannon/internal/generate"
+	"clickcannon/internal/insert"
+	"clickcannon/internal/metrics"
+	"clickcannon/internal/user"
 	"context"
 	"errors"
 	"net/http"

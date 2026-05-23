@@ -3,7 +3,7 @@ package generate
 import (
 	"time"
 
-	"clickspam/internal/block"
+	"clickcannon/internal/block"
 
 	"github.com/ClickHouse/ch-go/proto"
 )
@@ -195,8 +195,8 @@ func (c *GenTracesColumns) LastTimestamp() time.Time {
 	return time.Time{}
 }
 
-func (c *GenTracesColumns) UpdateDate()                                  {}
-func (c *GenTracesColumns) ShiftTimestamp(_ block.ReplayTimeSnapshot)     {}
-func (c *GenTracesColumns) UpdateTimestampNow()                          {}
-func (c *GenTracesColumns) UpdateTimestampMinute()                       {}
-func (c *GenTracesColumns) MutateIDs(_ int)                              {}
+func (c *GenTracesColumns) UpdateDate()                               {}
+func (c *GenTracesColumns) ShiftTimestamp(_ block.ReplayTimeSnapshot) {}
+func (c *GenTracesColumns) UpdateTimestampNow()                       {}
+func (c *GenTracesColumns) UpdateTimestampMinute()                    {}
+func (c *GenTracesColumns) MutateIDs(_ int)                           {}

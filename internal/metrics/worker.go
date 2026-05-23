@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"clickspam/internal/block"
+	"clickcannon/internal/block"
 	"context"
 	"fmt"
 	"log/slog"

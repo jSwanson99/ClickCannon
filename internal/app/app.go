@@ -37,7 +37,7 @@ func Setup() (string, string, *Config, *slog.Logger, func()) {
 	}
 
 	timeStr := time.Now().Format("2006-01-02_15-04-05")
-	logFileName := fmt.Sprintf("clickspam_%s_%s.log", timeStr, runID[:8])
+	logFileName := fmt.Sprintf("clickcannon_%s_%s.log", timeStr, runID[:8])
 	log, logFile, err := NewLogger(logFileName, logLevel, cfg.App.LogToConsole, cfg.App.LogToFile)
 	if err != nil {
 		setupErr(fmt.Errorf("failed to create logger: %w", err))
@@ -54,7 +54,7 @@ func Setup() (string, string, *Config, *slog.Logger, func()) {
 		}
 	}
 
-	log.Info("starting clickspam", "seed", cfg.App.Seed, "data_type", cfg.App.DataType)
+	log.Info("starting clickcannon", "seed", cfg.App.Seed, "data_type", cfg.App.DataType)
 
 	return runID, cfgFileName, cfg, log, closeFunc
 }

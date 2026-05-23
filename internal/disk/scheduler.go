@@ -1,12 +1,12 @@
 package disk
 
 import (
+	"clickcannon/internal/block"
+	"clickcannon/internal/metrics"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"clickspam/internal/block"
-	"clickspam/internal/metrics"
 	"sync"
 )
 

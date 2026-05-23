@@ -1,4 +1,4 @@
-module clickspam
+module clickcannon
 
 go 1.25.0
 

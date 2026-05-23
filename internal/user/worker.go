@@ -1,12 +1,12 @@
 package user
 
 import (
+	"clickcannon/internal/metrics"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
-	"clickspam/internal/metrics"
 	"strconv"
 	"time"
 )

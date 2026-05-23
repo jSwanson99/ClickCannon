@@ -1,4 +1,4 @@
-<h1 align="center">ClickSpam</h1>
+<h1 align="center">ClickCannon</h1>
 
 # About
 
@@ -17,35 +17,35 @@ Copy `example.yaml`, edit it for your environment, and enable the modes you want
 
 Run with Go:
 ```sh
-go run clickspam --config my-config.yaml
+go run clickcannon --config my-config.yaml
 ```
 
 Or build a binary first:
 ```sh
-go build -o clickspam . && ./clickspam --config my-config.yaml
+go build -o clickcannon . && ./clickcannon --config my-config.yaml
 ```
 
 Or with Docker (mount your config and data):
 ```sh
-docker build -t clickspam .
+docker build -t clickcannon .
 docker run -v $(pwd)/my-config.yaml:/root/my-config.yaml \
            -v $(pwd)/trace_data:/root/trace_data \
-           clickspam ./clickspam --config /root/my-config.yaml
+           clickcannon ./clickcannon --config /root/my-config.yaml
 ```
 
 The config path can also be set via environment variable:
 ```sh
-CLICKSPAM_CONFIG=my-config.yaml go run clickspam
+CLICKSPAM_CONFIG=my-config.yaml go run clickcannon
 ```
 
 By default a random UUID is generated as the run ID each time the program starts. To set a specific run ID, set `CLICKSPAM_RUN_ID`:
 ```sh
-CLICKSPAM_RUN_ID=my-run-id go run clickspam --config my-config.yaml
+CLICKSPAM_RUN_ID=my-run-id go run clickcannon --config my-config.yaml
 ```
 
 # Data Sources
 
-ClickSpam supports two data sources: disk replay and synthetic generation. Use one or the other.
+ClickCannon supports two data sources: disk replay and synthetic generation. Use one or the other.
 
 ## Generate (synthetic data)
 
@@ -94,7 +94,7 @@ You can split data across multiple files — each file becomes a unit of work fo
 
 # Memory Management
 
-ClickSpam includes two workarounds for memory growth that occurs during long runs. Both are caused by ch-go accumulating allocations over time and are addressed by periodic retirement of the relevant objects.
+ClickCannon includes two workarounds for memory growth that occurs during long runs. Both are caused by ch-go accumulating allocations over time and are addressed by periodic retirement of the relevant objects.
 
 ## Block retirement (`disk.block_retirement_uses`)
 

@@ -1,15 +1,15 @@
 package app
 
 import (
+	"clickcannon/internal/disk"
+	"clickcannon/internal/generate"
+	"clickcannon/internal/insert"
+	"clickcannon/internal/metrics"
+	"clickcannon/internal/user"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"clickspam/internal/disk"
-	"clickspam/internal/generate"
-	"clickspam/internal/insert"
-	"clickspam/internal/metrics"
-	"clickspam/internal/user"
 	"path/filepath"
 
 	"github.com/goccy/go-yaml"
@@ -34,12 +34,12 @@ type Config struct {
 		Seed         string `yaml:"seed"`
 	} `yaml:"app"`
 
-	Pprof    PprofConfig      `yaml:"pprof"`
-	Disk     disk.Config      `yaml:"disk"`
-	Generate generate.Config  `yaml:"generate"`
-	Insert   insert.Config    `yaml:"insert"`
-	Metrics  metrics.Config   `yaml:"metrics"`
-	User     user.Config      `yaml:"user"`
+	Pprof    PprofConfig     `yaml:"pprof"`
+	Disk     disk.Config     `yaml:"disk"`
+	Generate generate.Config `yaml:"generate"`
+	Insert   insert.Config   `yaml:"insert"`
+	Metrics  metrics.Config  `yaml:"metrics"`
+	User     user.Config     `yaml:"user"`
 }
 
 func (c Config) GetDataFolder() string {

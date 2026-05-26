@@ -87,7 +87,7 @@ Update your config files accordingly.
 - **Configurable `TimestampTime` in logs** — Log data generation now supports toggling whether the `TimestampTime` field is included in emitted log records.
 
 #### Developer Experience
-- **Environment variable overrides** — `CLICKSPAM_RUN_ID` and `CLICKSPAM_CONFIG` environment variables can now be used to override the run ID and config file path without modifying the config file.
+- **Environment variable overrides** — `CLICKCANNON_RUN_ID` and `CLICKCANNON_CONFIG` environment variables can now be used to override the run ID and config file path without modifying the config file.
 - **Node balancing optimization** — Insert workers no longer perform a host IP lookup when node balancing is disabled.
 
 ### Bug Fixes

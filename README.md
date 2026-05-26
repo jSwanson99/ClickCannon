@@ -35,12 +35,12 @@ docker run -v $(pwd)/my-config.yaml:/root/my-config.yaml \
 
 The config path can also be set via environment variable:
 ```sh
-CLICKSPAM_CONFIG=my-config.yaml go run clickcannon
+CLICKCANNON_CONFIG=my-config.yaml go run clickcannon
 ```
 
-By default a random UUID is generated as the run ID each time the program starts. To set a specific run ID, set `CLICKSPAM_RUN_ID`:
+By default a random UUID is generated as the run ID each time the program starts. To set a specific run ID, set `CLICKCANNON_RUN_ID`:
 ```sh
-CLICKSPAM_RUN_ID=my-run-id go run clickcannon --config my-config.yaml
+CLICKCANNON_RUN_ID=my-run-id go run clickcannon --config my-config.yaml
 ```
 
 # Data Sources

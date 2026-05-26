@@ -106,11 +106,11 @@ func LoadConfig() (*Config, string, error) {
 	flag.Parse()
 
 	if configPath == "" {
-		configPath = os.Getenv("CLICKSPAM_CONFIG")
+		configPath = os.Getenv("CLICKCANNON_CONFIG")
 	}
 
 	if configPath == "" {
-		return nil, "", errors.New("--config flag or CLICKSPAM_CONFIG env var is required")
+		return nil, "", errors.New("--config flag or CLICKCANNON_CONFIG env var is required")
 	}
 
 	configFileName := filepath.Base(configPath)

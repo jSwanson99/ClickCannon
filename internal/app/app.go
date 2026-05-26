@@ -17,7 +17,7 @@ func setupErr(err error) {
 func Setup() (string, string, *Config, *slog.Logger, func()) {
 	time.Local = time.UTC
 
-	runID := os.Getenv("CLICKSPAM_RUN_ID")
+	runID := os.Getenv("CLICKCANNON_RUN_ID")
 	if runID == "" {
 		runID = NewRunID()
 	}

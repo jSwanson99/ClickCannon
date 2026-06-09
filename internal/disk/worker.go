@@ -147,7 +147,6 @@ func (w *worker) buildReader() (*proto.Reader, func(), error) {
 		optReader = zstdRd
 	}
 
-	optReader = bufio.NewReaderSize(optReader, 32*1024)
 	w.speedRd = NewSpeedLimitedReader(optReader, w.bytesPerSecondLimit, func(n uint64) {
 		w.metrics.IncrementMetric(metrics.DiskBytesUncompressedTotal, n)
 		w.metrics.IncrementMetricWithAttr(metrics.DiskBytesUncompressedWorkerTotal, n, "worker_id", w.idStr)

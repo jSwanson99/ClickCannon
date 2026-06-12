@@ -11,6 +11,8 @@ A program for replaying OTel data into ClickHouse and simulating concurrent user
 
 `disk` and `generate` are mutually exclusive data sources — enable one or the other. Each mode is independently toggled via `enabled` in the config. You can run `generate` + `insert` to load synthetic data, `disk` + `insert` to replay existing data, or `user` alone against an already-populated table.
 
+([development blog post](https://clickhouse.com/blog/building-clickcannon-a-tool-for-benchmark-clickhouse))
+
 # Usage
 
 Copy `example.yaml`, edit it for your environment, and enable the modes you want.

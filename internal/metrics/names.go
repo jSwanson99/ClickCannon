@@ -24,11 +24,22 @@ const (
 	InsertBytesCompressedWorkerTotal   Name = "insert_bytes_compressed_worker_total"
 	InsertBatchesWorkerTotal           Name = "insert_batches_worker_total"
 
+	// OTel export counters
+
+	OTelRowsTotal          Name = "otel_rows_total"
+	OTelBatchesTotal       Name = "otel_batches_total"
+	OTelBytesTotal         Name = "otel_bytes_total" // marshaled OTLP request size sent over the wire
+	OTelExportsFailedTotal Name = "otel_exports_failed_total"
+
+	// Per-worker OTel export counters (attribute: worker_id)
+	OTelRowsWorkerTotal    Name = "otel_rows_worker_total"
+	OTelBatchesWorkerTotal Name = "otel_batches_worker_total"
+
 	// Generate counters
 
-	GenerateRowsTotal        Name = "generate_rows_total"
-	GenerateBlocksTotal      Name = "generate_blocks_total"
-	GenerateRowsWorkerTotal  Name = "generate_rows_worker_total"
+	GenerateRowsTotal       Name = "generate_rows_total"
+	GenerateBlocksTotal     Name = "generate_blocks_total"
+	GenerateRowsWorkerTotal Name = "generate_rows_worker_total"
 
 	// Per-worker disk read counters (attribute: worker_id)
 	DiskRowsWorkerTotal              Name = "disk_rows_worker_total"
@@ -64,10 +75,11 @@ const (
 	TargetGenerateRowsPerSecond Name = "target_generate_rows_per_second"
 	TargetWorkerBytesPerSecond  Name = "target_worker_bytes_per_second"
 
-	ActiveGenerators Name = "active_generators"
-	ActiveReaders    Name = "active_readers"
-	ActiveInserters  Name = "active_inserters"
-	ActiveUsers      Name = "active_users"
+	ActiveGenerators    Name = "active_generators"
+	ActiveReaders       Name = "active_readers"
+	ActiveInserters     Name = "active_inserters"
+	ActiveOTelExporters Name = "active_otel_exporters"
+	ActiveUsers         Name = "active_users"
 
 	BlockPoolCount    Name = "block_pool_count"
 	BlockPoolCapacity Name = "block_pool_capacity"

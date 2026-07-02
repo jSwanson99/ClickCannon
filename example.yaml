@@ -132,6 +132,35 @@ insert:
     traces_table: otel_traces
 
 
+# Settings related to exporting data as OTLP to an OpenTelemetry endpoint over gRPC.
+# When enabled, the exporter consumes the same generated/replayed blocks the insert
+# workers would and sends them as OTLP instead of inserting into ClickHouse. Only one
+# sink (insert or otel) can consume the block queue at a time — if both are enabled,
+# insert is disabled and a warning is logged. Row data is passed through verbatim
+# (column values map straight to OTLP fields; no SDK enrichment).
+otel:
+  enabled: false
+  # OTLP/gRPC endpoint. A leading http:// / https:// / grpc:// scheme is optional;
+  # http:// implies plaintext.
+  url: localhost:4317
+  # Disable transport security (plaintext gRPC). Set true for a local collector.
+  insecure: true
+  # Concurrent exporter workers (one gRPC connection each).
+  threads: 4
+  # Rows accumulated across one or more blocks before an export is flushed. Not an
+  # exact limit — a batch finishes on the block boundary that crosses this threshold.
+  batch_size: 10000
+  # Max time a partially-filled batch waits before being flushed.
+  flush_interval: 1s
+  # Per-export request timeout.
+  timeout: 30s
+  # gRPC compression: none or gzip.
+  compression: gzip
+  # Optional gRPC metadata headers sent with every export (e.g. auth tokens).
+  headers:
+    # authorization: "Bearer <token>"
+
+
 # Settings related to the program's read/insert metrics
 metrics:
   enabled: true

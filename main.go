@@ -7,6 +7,7 @@ import (
 	"clickcannon/internal/generate"
 	"clickcannon/internal/insert"
 	"clickcannon/internal/metrics"
+	otelexport "clickcannon/internal/otel"
 	"clickcannon/internal/user"
 	"context"
 	"errors"
@@ -40,14 +41,25 @@ func main() {
 
 	targetBytesPerSecond := cfg.Disk.MiBytesPerSecondLimit * 1024 * 1024
 
+	// Only one sink can consume the block queue. OTel export takes precedence
+	// over insert when both are enabled.
+	insertEnabled := cfg.Insert.Enabled
+	otelEnabled := cfg.OTel.Enabled
+	if insertEnabled && otelEnabled {
+		log.Warn("both insert and otel export are enabled; only one sink can consume the block queue — using otel export, insert disabled")
+		insertEnabled = false
+	}
+
 	log.Info("config",
 		"config_file", cfgFileName,
 		"run_name", runName,
 		"disk_enabled", cfg.Disk.Enabled,
 		"generate_enabled", cfg.Generate.Enabled,
-		"insert_enabled", cfg.Insert.Enabled,
+		"insert_enabled", insertEnabled,
 		"insert_threads", cfg.Insert.Threads,
 		"batch_size", cfg.Insert.BatchSize,
+		"otel_enabled", otelEnabled,
+		"otel_threads", cfg.OTel.Threads,
 	)
 
 	// Determine source thread count for block pool sizing
@@ -56,7 +68,15 @@ func main() {
 		sourceThreads = cfg.Generate.Threads
 	}
 
-	blocksToAlloc := (sourceThreads + cfg.Insert.Threads) * 2
+	// The active sink's thread count feeds block pool sizing.
+	consumerThreads := 0
+	if insertEnabled {
+		consumerThreads = cfg.Insert.Threads
+	} else if otelEnabled {
+		consumerThreads = cfg.OTel.Threads
+	}
+
+	blocksToAlloc := (sourceThreads + consumerThreads) * 2
 	insertQueue := make(chan block.SharedColumns, blocksToAlloc)
 	var blockCreateFunc func() block.SharedColumns
 
@@ -129,7 +149,7 @@ func main() {
 	var sourceWg sync.WaitGroup
 	sourceCtx, cancelSource := context.WithCancel(context.Background())
 	if cfg.Generate.Enabled {
-		gs := generate.NewScheduler(log, &cfg.Generate, cfg.App.Seed, cfg.App.DataType, blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
+		gs := generate.NewScheduler(log, &cfg.Generate, cfg.App.Seed, cfg.App.DataType, blockPool, insertQueue, metricsStore, !(insertEnabled || otelEnabled))
 		sourceWg.Go(func() {
 			gsErr := gs.Run(sourceCtx)
 			if gsErr != nil && !errors.Is(gsErr, context.Canceled) {
@@ -138,7 +158,7 @@ func main() {
 			close(insertQueue)
 		})
 	} else if cfg.Disk.Enabled {
-		dws := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !cfg.Insert.Enabled)
+		dws := disk.NewScheduler(log, &cfg.Disk, cfg.GetDataFolder(), blockPool, insertQueue, metricsStore, !(insertEnabled || otelEnabled))
 		sourceWg.Go(func() {
 			dwsErr := dws.Run(sourceCtx)
 			if dwsErr != nil && !errors.Is(dwsErr, context.Canceled) {
@@ -152,7 +172,7 @@ func main() {
 
 	var insertWg sync.WaitGroup
 	insertCtx, cancelInsert := context.WithCancel(context.Background())
-	if cfg.Insert.Enabled {
+	if insertEnabled {
 		if !cfg.Disk.Enabled && !cfg.Generate.Enabled {
 			log.Warn("insert is enabled but no data source (disk/generate) is enabled, insert workers will not start")
 		} else {
@@ -161,6 +181,22 @@ func main() {
 				iwsErr := iws.Run(insertCtx)
 				if iwsErr != nil && !errors.Is(iwsErr, context.Canceled) {
 					log.Error("insert worker scheduler error", "err", iwsErr)
+				}
+			})
+		}
+	}
+
+	var otelWg sync.WaitGroup
+	otelCtx, cancelOtel := context.WithCancel(context.Background())
+	if otelEnabled {
+		if !cfg.Disk.Enabled && !cfg.Generate.Enabled {
+			log.Warn("otel export is enabled but no data source (disk/generate) is enabled, otel workers will not start")
+		} else {
+			ows := otelexport.NewScheduler(log, &cfg.OTel, cfg.App.DataType, blockPool, insertQueue, metricsStore)
+			otelWg.Go(func() {
+				owsErr := ows.Run(otelCtx)
+				if owsErr != nil && !errors.Is(owsErr, context.Canceled) {
+					log.Error("otel worker scheduler error", "err", owsErr)
 				}
 			})
 		}
@@ -182,6 +218,7 @@ func main() {
 	go func() {
 		sourceWg.Wait()
 		insertWg.Wait()
+		otelWg.Wait()
 		userWg.Wait()
 		close(done)
 	}()
@@ -196,6 +233,8 @@ func main() {
 	sourceWg.Wait()
 	cancelInsert()
 	insertWg.Wait()
+	cancelOtel()
+	otelWg.Wait()
 	cancelUser()
 	userWg.Wait()
 	cancelMetrics()

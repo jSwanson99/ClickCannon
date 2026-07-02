@@ -5,6 +5,7 @@ import (
 	"clickcannon/internal/generate"
 	"clickcannon/internal/insert"
 	"clickcannon/internal/metrics"
+	"clickcannon/internal/otel"
 	"clickcannon/internal/user"
 	"errors"
 	"flag"
@@ -38,6 +39,7 @@ type Config struct {
 	Disk     disk.Config     `yaml:"disk"`
 	Generate generate.Config `yaml:"generate"`
 	Insert   insert.Config   `yaml:"insert"`
+	OTel     otel.Config     `yaml:"otel"`
 	Metrics  metrics.Config  `yaml:"metrics"`
 	User     user.Config     `yaml:"user"`
 }
@@ -87,6 +89,10 @@ func (c Config) Validate() error {
 
 	if err := c.Insert.Validate(); err != nil {
 		return fmt.Errorf("insert: %w", err)
+	}
+
+	if err := c.OTel.Validate(); err != nil {
+		return fmt.Errorf("otel: %w", err)
 	}
 
 	if err := c.Metrics.Validate(); err != nil {

@@ -10,7 +10,6 @@ app:
   log_to_console: true
   log_to_file: false
   # Determines the data type being read/inserted for the test. One of: logs, traces, profiles
-  # Note: profiles is not supported by the otel export sink.
   data_type: traces
   # A seed for the test. Will be used with random number generation for reproducible tests.
   seed: "some string"

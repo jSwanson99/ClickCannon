@@ -7,8 +7,9 @@ type Config struct {
 	// How many read threads
 	Threads int `yaml:"threads"`
 
-	LogsPath   string `yaml:"logs_path"`
-	TracesPath string `yaml:"traces_path"`
+	LogsPath     string `yaml:"logs_path"`
+	TracesPath   string `yaml:"traces_path"`
+	ProfilesPath string `yaml:"profiles_path"`
 
 	ReuseBlocks bool `yaml:"reuse_blocks"`
 
@@ -47,6 +48,10 @@ func (c Config) Validate() error {
 
 	if c.TracesPath == "" {
 		return errors.New("traces_path is empty")
+	}
+
+	if c.ProfilesPath == "" {
+		return errors.New("profiles_path is empty")
 	}
 
 	if c.MiBytesPerSecondLimit < 1 {

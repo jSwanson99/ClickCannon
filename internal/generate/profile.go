@@ -41,6 +41,17 @@ type Profile struct {
 	StatusCode    Gen
 	StatusMessage Gen
 	SpanAttrs     *MapGen
+
+	// Profiles-only
+	SampleType      Gen
+	SampleUnit      Gen
+	PeriodType      Gen
+	PeriodUnit      Gen
+	FunctionName    Gen
+	FileName        Gen
+	MappingFileName Gen
+	ProfileAttrs    *MapGen
+	SampleAttrs     *MapGen
 }
 
 // NewProfile returns an empty Profile. Use the With* builders or set fields directly.
@@ -61,6 +72,16 @@ func (p *Profile) WithSpanKind(g Gen) *Profile      { p.SpanKind = g; return p }
 func (p *Profile) WithStatusCode(g Gen) *Profile    { p.StatusCode = g; return p }
 func (p *Profile) WithStatusMessage(g Gen) *Profile { p.StatusMessage = g; return p }
 func (p *Profile) WithSpanAttrs(m *MapGen) *Profile { p.SpanAttrs = m; return p }
+
+func (p *Profile) WithSampleType(g Gen) *Profile       { p.SampleType = g; return p }
+func (p *Profile) WithSampleUnit(g Gen) *Profile       { p.SampleUnit = g; return p }
+func (p *Profile) WithPeriodType(g Gen) *Profile       { p.PeriodType = g; return p }
+func (p *Profile) WithPeriodUnit(g Gen) *Profile       { p.PeriodUnit = g; return p }
+func (p *Profile) WithFunctionName(g Gen) *Profile     { p.FunctionName = g; return p }
+func (p *Profile) WithFileName(g Gen) *Profile         { p.FileName = g; return p }
+func (p *Profile) WithMappingFileName(g Gen) *Profile  { p.MappingFileName = g; return p }
+func (p *Profile) WithProfileAttrs(m *MapGen) *Profile { p.ProfileAttrs = m; return p }
+func (p *Profile) WithSampleAttrs(m *MapGen) *Profile  { p.SampleAttrs = m; return p }
 
 // applyDefaults fills any unset generators with safe default constants so the
 // fillers never need to nil-check on the hot path.
@@ -103,6 +124,33 @@ func (p *Profile) applyDefaults() {
 	}
 	if p.SpanAttrs == nil {
 		p.SpanAttrs = Map()
+	}
+	if p.SampleType == nil {
+		p.SampleType = Pool("cpu", "samples", "alloc_space", "inuse_space", "alloc_objects", "inuse_objects")
+	}
+	if p.SampleUnit == nil {
+		p.SampleUnit = Pool("nanoseconds", "count", "bytes")
+	}
+	if p.PeriodType == nil {
+		p.PeriodType = Const("cpu")
+	}
+	if p.PeriodUnit == nil {
+		p.PeriodUnit = Const("nanoseconds")
+	}
+	if p.FunctionName == nil {
+		p.FunctionName = Pool("main.main", "runtime.mallocgc", "runtime.gcBgMarkWorker", "runtime.systemstack", "runtime.futex", "net/http.(*conn).serve", "net/http.(*ServeMux).ServeHTTP", "sync.(*Mutex).Lock", "encoding/json.Marshal", "encoding/json.Unmarshal", "database/sql.(*DB).query", "runtime.memmove", "runtime.scanobject", "reflect.Value.Call", "bytes.(*Buffer).Write")
+	}
+	if p.FileName == nil {
+		p.FileName = Pool("/usr/local/go/src/runtime/proc.go", "/usr/local/go/src/runtime/malloc.go", "/usr/local/go/src/net/http/server.go", "/usr/local/go/src/sync/mutex.go", "/usr/local/go/src/encoding/json/encode.go", "/app/main.go", "/app/internal/handler/handler.go", "/app/internal/store/store.go")
+	}
+	if p.MappingFileName == nil {
+		p.MappingFileName = Pool("/app/server", "/usr/lib/x86_64-linux-gnu/libc.so.6", "/usr/local/go/pkg/tool/linux_amd64/link", "[vdso]")
+	}
+	if p.ProfileAttrs == nil {
+		p.ProfileAttrs = Map()
+	}
+	if p.SampleAttrs == nil {
+		p.SampleAttrs = Map()
 	}
 }
 

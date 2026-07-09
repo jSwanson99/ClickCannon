@@ -25,8 +25,9 @@ type worker struct {
 	dataType     string
 	passthrough  bool // when true, blocks are released immediately (benchmarks generation throughput)
 
-	logsFiller   *LogsFiller
-	tracesFiller *TracesFiller
+	logsFiller     *LogsFiller
+	tracesFiller   *TracesFiller
+	profilesFiller *ProfilesFiller
 }
 
 func (w *worker) ID() int { return w.id }
@@ -72,6 +73,13 @@ func (w *worker) Run(ctx context.Context) error {
 				return fmt.Errorf("expected *GenTracesColumns, got %T", cols)
 			}
 			rowsFilled = w.tracesFiller.Fill(ctx, w.rng, traceCols, w.rowsPerBlock)
+		case "profiles":
+			profileCols, ok := cols.(*GenProfilesColumns)
+			if !ok {
+				w.blockPool.Release(cols)
+				return fmt.Errorf("expected *GenProfilesColumns, got %T", cols)
+			}
+			rowsFilled = w.profilesFiller.Fill(ctx, w.rng, profileCols, w.rowsPerBlock)
 		}
 
 		// Partial fill from cancellation — discard the block

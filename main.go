@@ -90,6 +90,10 @@ func main() {
 			blockCreateFunc = func() block.SharedColumns {
 				return generate.NewGenTracesColumns()
 			}
+		} else if cfg.App.DataType == app.ConfigDataTypeProfiles {
+			blockCreateFunc = func() block.SharedColumns {
+				return generate.NewGenProfilesColumns()
+			}
 		}
 	} else {
 		// Disk mode: use decode-oriented column types
@@ -100,6 +104,10 @@ func main() {
 		} else if cfg.App.DataType == app.ConfigDataTypeTraces {
 			blockCreateFunc = func() block.SharedColumns {
 				return block.NewTracesSharedColumns()
+			}
+		} else if cfg.App.DataType == app.ConfigDataTypeProfiles {
+			blockCreateFunc = func() block.SharedColumns {
+				return block.NewProfilesSharedColumns()
 			}
 		}
 	}

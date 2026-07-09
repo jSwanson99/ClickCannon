@@ -9,7 +9,8 @@ app:
   log_level: debug
   log_to_console: true
   log_to_file: false
-  # Determines the data type being read/inserted for the test. One of: logs, traces
+  # Determines the data type being read/inserted for the test. One of: logs, traces, profiles
+  # Note: profiles is not supported by the otel export sink.
   data_type: traces
   # A seed for the test. Will be used with random number generation for reproducible tests.
   seed: "some string"
@@ -58,13 +59,25 @@ generate:
     duration_min_us: 1000
     duration_max_us: 5000000
 
+  # Profile-specific settings (only used when data_type: profiles)
+  profiles:
+    # Number of stack frames per sample (uniform random between min and max)
+    stack_depth_min: 5
+    stack_depth_max: 40
+    # Profile duration range in milliseconds
+    duration_min_ms: 1000
+    duration_max_ms: 60000
+    # Sampling period in nanoseconds
+    period_ns: 10000000
+
 # Disk mode: replay pre-exported .native/.native.zst files (mutually exclusive with generate)
 disk:
   enabled: true
   threads: 4
-  # Path to logs/traces directories. Files must be named .native or .native.zst
+  # Path to logs/traces/profiles directories. Files must be named .native or .native.zst
   logs_path: log_data
   traces_path: trace_data
+  profiles_path: profile_data
   # Set to true if the logs files on disk were exported with TimestampTime present.
   has_timestamp_time: false
   # Blocks can be reused to reduce garbage in the program and improve throughput stability, but
@@ -130,6 +143,7 @@ insert:
     database: otel
     logs_table: otel_logs
     traces_table: otel_traces
+    profiles_table: otel_profiles
 
 
 # Settings related to exporting data as OTLP to an OpenTelemetry endpoint over gRPC.

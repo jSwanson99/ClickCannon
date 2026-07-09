@@ -18,6 +18,7 @@ import (
 
 const ConfigDataTypeLogs = "logs"
 const ConfigDataTypeTraces = "traces"
+const ConfigDataTypeProfiles = "profiles"
 
 type PprofConfig struct {
 	// Address to listen on for the pprof HTTP endpoint (e.g. "localhost:6060").
@@ -50,6 +51,8 @@ func (c Config) GetDataFolder() string {
 		return c.Disk.LogsPath
 	case ConfigDataTypeTraces:
 		return c.Disk.TracesPath
+	case ConfigDataTypeProfiles:
+		return c.Disk.ProfilesPath
 	default:
 		return ""
 	}
@@ -61,6 +64,8 @@ func (c Config) GetInsertTable() string {
 		return c.Insert.ClickHouse.LogsTable
 	case ConfigDataTypeTraces:
 		return c.Insert.ClickHouse.TracesTable
+	case ConfigDataTypeProfiles:
+		return c.Insert.ClickHouse.ProfilesTable
 	default:
 		return ""
 	}
@@ -71,12 +76,16 @@ func (c Config) IsLogsData() bool {
 }
 
 func (c Config) Validate() error {
-	if c.App.DataType == "" || (c.App.DataType != ConfigDataTypeLogs && c.App.DataType != ConfigDataTypeTraces) {
-		return errors.New("app: data_type must be one of: logs, traces")
+	if c.App.DataType == "" || (c.App.DataType != ConfigDataTypeLogs && c.App.DataType != ConfigDataTypeTraces && c.App.DataType != ConfigDataTypeProfiles) {
+		return errors.New("app: data_type must be one of: logs, traces, profiles")
 	}
 
 	if c.Disk.Enabled && c.Generate.Enabled {
 		return errors.New("disk and generate cannot both be enabled; use one or the other")
+	}
+
+	if c.App.DataType == ConfigDataTypeProfiles && c.OTel.Enabled {
+		return errors.New("otel export does not support data_type: profiles")
 	}
 
 	if err := c.Disk.Validate(); err != nil {

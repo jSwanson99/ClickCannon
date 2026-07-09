@@ -21,7 +21,8 @@ type Config struct {
 	ReuseBlocks         bool `yaml:"reuse_blocks"`
 	BlockRetirementUses int  `yaml:"block_retirement_uses"`
 
-	Traces TracesConfig `yaml:"traces"`
+	Traces   TracesConfig   `yaml:"traces"`
+	Profiles ProfilesConfig `yaml:"profiles"`
 }
 
 // TracesConfig holds trace-tree shape parameters used by the traces filler.
@@ -31,6 +32,15 @@ type TracesConfig struct {
 	MaxDepth         int    `yaml:"max_depth"`
 	DurationMinUs    uint64 `yaml:"duration_min_us"`
 	DurationMaxUs    uint64 `yaml:"duration_max_us"`
+}
+
+// ProfilesConfig holds sample-shape parameters used by the profiles filler.
+type ProfilesConfig struct {
+	StackDepthMin int    `yaml:"stack_depth_min"`
+	StackDepthMax int    `yaml:"stack_depth_max"`
+	DurationMinMs uint64 `yaml:"duration_min_ms"`
+	DurationMaxMs uint64 `yaml:"duration_max_ms"`
+	PeriodNs      int64  `yaml:"period_ns"`
 }
 
 func (c *Config) Validate() error {
@@ -60,6 +70,22 @@ func (c *Config) Validate() error {
 	}
 	if c.Traces.DurationMaxUs == 0 || c.Traces.DurationMaxUs < c.Traces.DurationMinUs {
 		c.Traces.DurationMaxUs = 5000000
+	}
+
+	if c.Profiles.StackDepthMin < 1 {
+		c.Profiles.StackDepthMin = 1
+	}
+	if c.Profiles.StackDepthMax < c.Profiles.StackDepthMin {
+		c.Profiles.StackDepthMax = c.Profiles.StackDepthMin
+	}
+	if c.Profiles.DurationMinMs == 0 {
+		c.Profiles.DurationMinMs = 1000
+	}
+	if c.Profiles.DurationMaxMs == 0 || c.Profiles.DurationMaxMs < c.Profiles.DurationMinMs {
+		c.Profiles.DurationMaxMs = 60000
+	}
+	if c.Profiles.PeriodNs == 0 {
+		c.Profiles.PeriodNs = 10000000
 	}
 
 	return nil

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- **Profiles support** — A new `profiles` data type joins `logs` and `traces` across the disk, generate, and insert pipelines. Set `app.data_type: profiles` to replay pre-exported profile `.native` files (`disk.profiles_path`), generate synthetic profiles (each row a sample with a random-depth call stack, configurable via `generate.profiles`), and insert into a profiles table (`insert.clickhouse.profiles_table`).
+
 ## v0.4.0
 
 ### Breaking Changes

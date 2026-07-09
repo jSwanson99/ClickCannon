@@ -66,12 +66,15 @@ func (s *Scheduler) Run(ctx context.Context) error {
 
 	var logsFiller *LogsFiller
 	var tracesFiller *TracesFiller
+	var profilesFiller *ProfilesFiller
 
 	switch s.dataType {
 	case "logs":
 		logsFiller = NewLogsFiller(profile)
 	case "traces":
 		tracesFiller = NewTracesFiller(profile, s.cfg.Traces)
+	case "profiles":
+		profilesFiller = NewProfilesFiller(profile, s.cfg.Profiles)
 	default:
 		return fmt.Errorf("unsupported data type %q", s.dataType)
 	}
@@ -87,19 +90,20 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	for i := range s.cfg.Threads {
 		w := &worker{
-			id:           i,
-			idStr:        strconv.Itoa(i),
-			log:          s.log,
-			rng:          NewRng(s.seed, i),
-			blockPool:    s.blockPool,
-			insertQueue:  s.insertQueue,
-			metrics:      s.metrics,
-			limiter:      limiter,
-			rowsPerBlock: s.cfg.RowsPerBlock,
-			dataType:     s.dataType,
-			passthrough:  s.passthrough,
-			logsFiller:   logsFiller,
-			tracesFiller: tracesFiller,
+			id:             i,
+			idStr:          strconv.Itoa(i),
+			log:            s.log,
+			rng:            NewRng(s.seed, i),
+			blockPool:      s.blockPool,
+			insertQueue:    s.insertQueue,
+			metrics:        s.metrics,
+			limiter:        limiter,
+			rowsPerBlock:   s.cfg.RowsPerBlock,
+			dataType:       s.dataType,
+			passthrough:    s.passthrough,
+			logsFiller:     logsFiller,
+			tracesFiller:   tracesFiller,
+			profilesFiller: profilesFiller,
 		}
 
 		wg.Add(1)

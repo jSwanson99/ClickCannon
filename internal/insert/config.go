@@ -38,9 +38,10 @@ type ClickHouseConfig struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 
-	Database    string `yaml:"database"`
-	LogsTable   string `yaml:"logs_table"`
-	TracesTable string `yaml:"traces_table"`
+	Database      string `yaml:"database"`
+	LogsTable     string `yaml:"logs_table"`
+	TracesTable   string `yaml:"traces_table"`
+	ProfilesTable string `yaml:"profiles_table"`
 }
 
 func (c ClickHouseConfig) Validate() error {
@@ -64,6 +65,10 @@ func (c ClickHouseConfig) Validate() error {
 
 	if c.TracesTable == "" {
 		return errors.New("must set traces_table")
+	}
+
+	if c.ProfilesTable == "" {
+		return errors.New("must set profiles_table")
 	}
 
 	return nil

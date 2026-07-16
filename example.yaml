@@ -60,9 +60,13 @@ generate:
 
   # Profile-specific settings (only used when data_type: profiles)
   profiles:
+    # Number of unique-stack sample rows per profile (uniform random between min and max).
+    # All samples in a profile share a ProfileId, timestamp, duration, period, and resource attributes.
+    samples_per_profile_min: 50
+    samples_per_profile_max: 500
     # Number of stack frames per sample (uniform random between min and max)
     stack_depth_min: 5
-    stack_depth_max: 40
+    stack_depth_max: 64
     # Profile duration range in milliseconds
     duration_min_ms: 1000
     duration_max_ms: 60000

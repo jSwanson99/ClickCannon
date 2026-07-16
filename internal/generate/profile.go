@@ -138,19 +138,39 @@ func (p *Profile) applyDefaults() {
 		p.PeriodUnit = Const("nanoseconds")
 	}
 	if p.FunctionName == nil {
-		p.FunctionName = Pool("main.main", "runtime.mallocgc", "runtime.gcBgMarkWorker", "runtime.systemstack", "runtime.futex", "net/http.(*conn).serve", "net/http.(*ServeMux).ServeHTTP", "sync.(*Mutex).Lock", "encoding/json.Marshal", "encoding/json.Unmarshal", "database/sql.(*DB).query", "runtime.memmove", "runtime.scanobject", "reflect.Value.Call", "bytes.(*Buffer).Write")
+		p.FunctionName = AnyOf(
+			Pool("main.main", "runtime.mallocgc", "runtime.gcBgMarkWorker", "runtime.systemstack", "runtime.futex", "runtime.memmove", "runtime.scanobject", "runtime.mapaccess2", "runtime.growslice", "net/http.(*conn).serve", "net/http.(*ServeMux).ServeHTTP", "sync.(*Mutex).Lock", "encoding/json.Marshal", "encoding/json.Unmarshal", "database/sql.(*DB).QueryContext", "google.golang.org/grpc.(*Server).processUnaryRPC"),
+			RandStr(10).Prefix("app/internal/service."),
+			RandStr(8).Prefix("app/internal/handler."),
+			RandStr(10).Prefix("vendor/github.com/"),
+		)
 	}
 	if p.FileName == nil {
-		p.FileName = Pool("/usr/local/go/src/runtime/proc.go", "/usr/local/go/src/runtime/malloc.go", "/usr/local/go/src/net/http/server.go", "/usr/local/go/src/sync/mutex.go", "/usr/local/go/src/encoding/json/encode.go", "/app/main.go", "/app/internal/handler/handler.go", "/app/internal/store/store.go")
+		p.FileName = AnyOf(
+			Pool("/usr/local/go/src/runtime/proc.go", "/usr/local/go/src/runtime/malloc.go", "/usr/local/go/src/net/http/server.go", "/usr/local/go/src/sync/mutex.go", "/usr/local/go/src/encoding/json/encode.go"),
+			RandStr(8).Prefix("/app/internal/service/"),
+			RandStr(8).Prefix("/app/internal/handler/"),
+			RandStr(8).Prefix("/go/pkg/mod/github.com/"),
+		)
 	}
 	if p.MappingFileName == nil {
-		p.MappingFileName = Pool("/app/server", "/usr/lib/x86_64-linux-gnu/libc.so.6", "/usr/local/go/pkg/tool/linux_amd64/link", "[vdso]")
+		p.MappingFileName = Pool("/app/server", "/usr/lib/x86_64-linux-gnu/libc.so.6", "/usr/lib/x86_64-linux-gnu/libpthread.so.0", "/usr/local/go/pkg/tool/linux_amd64/link", "[vdso]", "[kernel.kallsyms]")
 	}
 	if p.ProfileAttrs == nil {
-		p.ProfileAttrs = Map()
+		p.ProfileAttrs = Map(
+			K(0.95, "profiler.name", "otel-ebpf-profiler", "pyroscope", "parca", "async-profiler", "datadog-profiler"),
+			K(0.9, "profiler.version", RandStr(5).Prefix("1.")),
+			K(0.7, "process.pid", Int(1, 65535)),
+			K(0.5, "runtime.name", "go", "OpenJDK", "CPython", "Node.js"),
+		)
 	}
 	if p.SampleAttrs == nil {
-		p.SampleAttrs = Map()
+		p.SampleAttrs = Map(
+			K(0.8, "thread.name", "main", "worker", "gc", "http-handler", "grpc-worker", "scheduler", "io-poller"),
+			K(0.8, "thread.id", Int(1, 4096)),
+			K(0.3, "endpoint", "/api/v1/users", "/api/v1/orders", "/api/v1/search", "/api/v1/checkout", "/internal/health"),
+			K(0.15, "tenant.id", Int(1000, 9999).Prefix("tenant-")),
+		)
 	}
 }
 

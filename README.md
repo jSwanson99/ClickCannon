@@ -72,8 +72,10 @@ generate:
     duration_max_us: 5000000
   # Profile-specific settings (only used when data_type: profiles)
   profiles:
+    samples_per_profile_min: 50
+    samples_per_profile_max: 500
     stack_depth_min: 5
-    stack_depth_max: 40
+    stack_depth_max: 64
     duration_min_ms: 1000
     duration_max_ms: 60000
     period_ns: 10000000
@@ -83,7 +85,7 @@ Adding a new generator profile means writing one Go file that calls `generate.Re
 
 Generators available: `Pool/V`, `Const`, `RandStr(n).Prefix(p)`, `Hex(n).Prefix(p)`, `UUID()`, `IP().AsU32()/AsHex()`, `Int(min, max).Prefix(p)`, `Float(max).Precision(n).Prefix(p)`, `Bool(trueProb)`. Map columns use probabilistic key presence — each key has a per-row probability of appearing. `KP` produces unique keys (prefix + random hex) for thrashing LowCardinality dictionaries.
 
-When generating traces, each worker independently produces complete traces with correlated `TraceId`/`SpanId`/`ParentSpanId` hierarchies. When generating profiles, each row is a sample with a random-depth call stack (function/file/mapping names, addresses, line numbers). All randomness is seeded from `app.seed` for reproducible runs.
+When generating traces, each worker independently produces complete traces with correlated `TraceId`/`SpanId`/`ParentSpanId` hierarchies. When generating profiles, each worker produces whole profiles — many unique-stack sample rows sharing a `ProfileId`, timestamp, duration, period, and resource attributes — where each row carries a random-depth call stack (function/file/mapping names, addresses, line numbers) and per-sample attributes. All randomness is seeded from `app.seed` for reproducible runs.
 
 `profiles` is supported by the disk, generate, and insert pipelines only — the otel export sink does not support it.
 

@@ -36,11 +36,13 @@ type TracesConfig struct {
 
 // ProfilesConfig holds sample-shape parameters used by the profiles filler.
 type ProfilesConfig struct {
-	StackDepthMin int    `yaml:"stack_depth_min"`
-	StackDepthMax int    `yaml:"stack_depth_max"`
-	DurationMinMs uint64 `yaml:"duration_min_ms"`
-	DurationMaxMs uint64 `yaml:"duration_max_ms"`
-	PeriodNs      int64  `yaml:"period_ns"`
+	SamplesPerProfileMin int    `yaml:"samples_per_profile_min"`
+	SamplesPerProfileMax int    `yaml:"samples_per_profile_max"`
+	StackDepthMin        int    `yaml:"stack_depth_min"`
+	StackDepthMax        int    `yaml:"stack_depth_max"`
+	DurationMinMs        uint64 `yaml:"duration_min_ms"`
+	DurationMaxMs        uint64 `yaml:"duration_max_ms"`
+	PeriodNs             int64  `yaml:"period_ns"`
 }
 
 func (c *Config) Validate() error {
@@ -72,6 +74,12 @@ func (c *Config) Validate() error {
 		c.Traces.DurationMaxUs = 5000000
 	}
 
+	if c.Profiles.SamplesPerProfileMin < 1 {
+		c.Profiles.SamplesPerProfileMin = 1
+	}
+	if c.Profiles.SamplesPerProfileMax < c.Profiles.SamplesPerProfileMin {
+		c.Profiles.SamplesPerProfileMax = c.Profiles.SamplesPerProfileMin
+	}
 	if c.Profiles.StackDepthMin < 1 {
 		c.Profiles.StackDepthMin = 1
 	}

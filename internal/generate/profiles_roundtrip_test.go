@@ -22,7 +22,7 @@ func TestProfilesGenDiskRoundTrip(t *testing.T) {
 		t.Fatalf("GetProfile: %v", err)
 	}
 
-	pcfg := ProfilesConfig{StackDepthMin: 3, StackDepthMax: 12, DurationMinMs: 1000, DurationMaxMs: 5000, PeriodNs: 10000000}
+	pcfg := ProfilesConfig{SamplesPerProfileMin: 20, SamplesPerProfileMax: 50, StackDepthMin: 3, StackDepthMax: 12, DurationMinMs: 1000, DurationMaxMs: 5000, PeriodNs: 10000000}
 	filler := NewProfilesFiller(p, pcfg)
 
 	gen := NewGenProfilesColumns()
@@ -51,6 +51,15 @@ func TestProfilesGenDiskRoundTrip(t *testing.T) {
 	// Column name/order parity between the two paths.
 	if genCols, diskCols := genInput.Columns(), disk.Input().Columns(); genCols != diskCols {
 		t.Fatalf("column mismatch:\n gen:  %s\n disk: %s", genCols, diskCols)
+	}
+
+	// Samples are grouped into profiles: many rows share a ProfileId.
+	distinct := map[string]struct{}{}
+	for i := 0; i < n; i++ {
+		distinct[gen.ProfileID.Row(i)] = struct{}{}
+	}
+	if len(distinct) >= n {
+		t.Fatalf("expected samples grouped under shared ProfileIds, got %d distinct across %d rows", len(distinct), n)
 	}
 
 	// Spot-check values across a scalar, low-cardinality, numeric, and array column.

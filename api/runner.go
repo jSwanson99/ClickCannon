@@ -386,19 +386,11 @@ func (r *Runner) err() error {
 
 // Stats is safe to call at any time, including before Start and after Stop.
 func (r *Runner) Stats() Stats {
-	var s Stats
-	if r.store != nil {
-		s = r.store.snapshot()
+	if r.store == nil {
+		return Stats{}
 	}
 
-	s.BlockQueueLength = len(r.insertQueue)
-	s.BlockQueueCapacity = cap(r.insertQueue)
-	if r.blockPool != nil {
-		s.BlockPoolAvailable, s.BlockPoolCapacity = r.blockPool.Stats()
-		s.BlocksRetired = r.blockPool.TotalRetired()
-	}
-
-	return s
+	return r.store.snapshot()
 }
 
 // Run starts the pipeline and runs until ctx is cancelled or every worker

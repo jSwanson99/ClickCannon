@@ -6,37 +6,31 @@ import (
 	"github.com/ClickHouse/ClickCannon/internal/metrics"
 )
 
-// Stats is a cumulative snapshot of a run. It is available even when
-// Config.Metrics is disabled, because the Runner keeps its own counters.
+// Stats is a cumulative snapshot of a run, for asserting from outside that the
+// pipeline moved data. It is available even when Config.Metrics is disabled,
+// because the Runner keeps its own counters.
+//
+// It deliberately carries only what an external check needs. ClickCannon's
+// tuning telemetry — byte counts, worker gauges, block pool and queue depth —
+// goes to ClickHouse via Config.Metrics and is charted by grafana.json.
 type Stats struct {
-	GeneratedRows   uint64
-	GeneratedBlocks uint64
-	DiskRows        uint64
+	// Source: the denominator for detecting rows dropped before the sink.
+	GeneratedRows uint64
+	DiskRows      uint64
 
-	InsertedRows              uint64
-	InsertedBatches           uint64
-	InsertedBytesUncompressed uint64
-	InsertedBytesCompressed   uint64
+	// Write path.
+	InsertedRows    uint64
+	InsertedBatches uint64
 
+	// OTLP export path. A non-zero OTelExportsFailed is the only in-process
+	// evidence that the collector rejected data.
 	OTelRows          uint64
 	OTelBatches       uint64
-	OTelBytes         uint64
 	OTelExportsFailed uint64
 
+	// Read path.
 	QueriesOK     uint64
 	QueriesFailed uint64
-
-	ActiveGenerators    uint64
-	ActiveReaders       uint64
-	ActiveInserters     uint64
-	ActiveOTelExporters uint64
-	ActiveUsers         uint64
-
-	BlockQueueLength   int
-	BlockQueueCapacity int
-	BlockPoolAvailable int
-	BlockPoolCapacity  int
-	BlocksRetired      int64
 }
 
 // memStore keeps counters in memory and optionally forwards to the
@@ -127,28 +121,18 @@ func (m *memStore) snapshot() Stats {
 	get := func(n metrics.Name) uint64 { return m.values[n] }
 
 	return Stats{
-		GeneratedRows:   get(metrics.GenerateRowsTotal),
-		GeneratedBlocks: get(metrics.GenerateBlocksTotal),
-		DiskRows:        get(metrics.DiskRowsTotal),
+		GeneratedRows: get(metrics.GenerateRowsTotal),
+		DiskRows:      get(metrics.DiskRowsTotal),
 
-		InsertedRows:              get(metrics.InsertRowsTotal),
-		InsertedBatches:           get(metrics.InsertBatchesTotal),
-		InsertedBytesUncompressed: get(metrics.InsertBytesUncompressedTotal),
-		InsertedBytesCompressed:   get(metrics.InsertBytesCompressedTotal),
+		InsertedRows:    get(metrics.InsertRowsTotal),
+		InsertedBatches: get(metrics.InsertBatchesTotal),
 
 		OTelRows:          get(metrics.OTelRowsTotal),
 		OTelBatches:       get(metrics.OTelBatchesTotal),
-		OTelBytes:         get(metrics.OTelBytesTotal),
 		OTelExportsFailed: get(metrics.OTelExportsFailedTotal),
 
 		QueriesOK:     get(metrics.QueriesOkTotal),
 		QueriesFailed: get(metrics.QueriesFailedTotal),
-
-		ActiveGenerators:    get(metrics.ActiveGenerators),
-		ActiveReaders:       get(metrics.ActiveReaders),
-		ActiveInserters:     get(metrics.ActiveInserters),
-		ActiveOTelExporters: get(metrics.ActiveOTelExporters),
-		ActiveUsers:         get(metrics.ActiveUsers),
 	}
 }
 

@@ -8,98 +8,31 @@ import (
 	"github.com/ClickHouse/ClickCannon/api"
 )
 
-func TestOTLPLoadDefaultIsSmokeRate(t *testing.T) {
-	cfg := api.OTLPLoad("collector.example.com:4317", api.DataTypeLogs)
-
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate: %v", err)
+// generateOnly is a source-only config: it fills blocks and drops them, so it
+// needs no sink and no network.
+func generateOnly(rowsPerSecond uint64) api.Config {
+	cfg := api.Config{}
+	cfg.App.DataType = api.DataTypeLogs
+	cfg.Generate = api.GenerateConfig{
+		Enabled:             true,
+		Threads:             1,
+		RowsPerSecond:       rowsPerSecond,
+		RowsPerBlock:        int(rowsPerSecond),
+		ReuseBlocks:         true,
+		BlockRetirementUses: 50,
 	}
 
-	if cfg.OTel.URL != "collector.example.com:4317" {
-		t.Fatalf("url: got %q", cfg.OTel.URL)
-	}
-	if cfg.Generate.RowsPerSecond != 10 {
-		t.Fatalf("rows_per_second: got %d want 10", cfg.Generate.RowsPerSecond)
-	}
-	if cfg.Generate.Threads != 1 {
-		t.Fatalf("generate threads: got %d want 1", cfg.Generate.Threads)
-	}
-	if cfg.Generate.RowsPerBlock != 10 {
-		t.Fatalf("rows_per_block: got %d want 10", cfg.Generate.RowsPerBlock)
-	}
+	return cfg
 }
 
-// TestBlockSizeTracksRate guards the trap where RowsPerBlock and RowsPerSecond
-// disagree: the limiter is charged a whole block at a time, so a block that is
-// too large stalls a slow generator and one that is too small floods the sink
-// with tiny requests.
-func TestBlockSizeTracksRate(t *testing.T) {
-	for _, tc := range []struct {
-		name         string
-		rps          uint64
-		source, sink int
-		wantBlock    int
-	}{
-		{"smoke", 10, 1, 1, 10},
-		{"scale up", 100_000, 8, 8, 10_000},
-		{"moderate", 50_000, 2, 2, 10_000},
-		{"low rate many threads", 4, 8, 8, 1},
-		{"unlimited", 0, 4, 4, 10_000},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := api.OTLPLoad("collector.example.com:4317", api.DataTypeLogs)
-			cfg.OTel.Headers = map[string]string{"authorization": "test-key"}
-			api.SetRowsPerSecond(&cfg, tc.rps)
-			api.SetThreads(&cfg, tc.source, tc.sink)
-
-			if err := cfg.Validate(); err != nil {
-				t.Fatalf("validate: %v", err)
-			}
-
-			if cfg.Generate.RowsPerBlock != tc.wantBlock {
-				t.Fatalf("rows_per_block: got %d want %d", cfg.Generate.RowsPerBlock, tc.wantBlock)
-			}
-			if cfg.OTel.BatchSize != tc.wantBlock {
-				t.Fatalf("batch_size: got %d want %d", cfg.OTel.BatchSize, tc.wantBlock)
-			}
-			if cfg.OTel.Threads != tc.sink {
-				t.Fatalf("otel threads: got %d want %d", cfg.OTel.Threads, tc.sink)
-			}
-		})
-	}
-}
-
-// TestBlockSizeOverride checks a manual size set after SetThreads sticks.
-func TestBlockSizeOverride(t *testing.T) {
-	cfg := api.OTLPLoad("collector.example.com:4317", api.DataTypeLogs)
-	api.SetRowsPerSecond(&cfg, 100_000)
-	api.SetThreads(&cfg, 4, 4)
-
-	cfg.Generate.RowsPerBlock = 250
-	cfg.OTel.BatchSize = 500
-
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate: %v", err)
-	}
-	if cfg.Generate.RowsPerBlock != 250 {
-		t.Fatalf("rows_per_block: got %d want 250", cfg.Generate.RowsPerBlock)
-	}
-	if cfg.OTel.BatchSize != 500 {
-		t.Fatalf("batch_size: got %d want 500", cfg.OTel.BatchSize)
-	}
-}
-
-// TestRunPassthroughAtSmokeRate exercises the lifecycle with no sink and no
-// network, and checks the default preset really does hold ~10 rows/second.
-func TestRunPassthroughAtSmokeRate(t *testing.T) {
+// TestRunAtFixedRate exercises the whole lifecycle and checks the rate limiter
+// holds the configured rows per second.
+func TestRunAtFixedRate(t *testing.T) {
 	const runFor = 3 * time.Second
 
-	cfg := api.OTLPLoad("unused:4317", api.DataTypeLogs)
-	cfg.OTel.Enabled = false
-
-	r, err := api.NewRunner(cfg, nil, "")
+	r, err := api.NewRunner(generateOnly(10), nil, "")
 	if err != nil {
-		t.Fatalf("new: %v", err)
+		t.Fatalf("new runner: %v", err)
 	}
 
 	if err := r.Start(); err != nil {
@@ -122,15 +55,42 @@ func TestRunPassthroughAtSmokeRate(t *testing.T) {
 			stats.GeneratedRows, runFor, lower, upper)
 	}
 
-	t.Logf("generated %d rows in %d blocks over %s", stats.GeneratedRows, stats.GeneratedBlocks, runFor)
+	t.Logf("generated %d rows over %s", stats.GeneratedRows, runFor)
 
+	// Stop is idempotent.
 	if err := r.Stop(); err != nil {
 		t.Fatalf("second stop: %v", err)
 	}
 }
 
+func TestStartTwiceFails(t *testing.T) {
+	r, err := api.NewRunner(generateOnly(10), nil, "")
+	if err != nil {
+		t.Fatalf("new runner: %v", err)
+	}
+
+	if err := r.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer r.Stop()
+
+	if err := r.Start(); err == nil {
+		t.Fatal("expected an error on the second Start")
+	}
+}
+
+func TestRejectsInvalidConfig(t *testing.T) {
+	cfg := generateOnly(10)
+	cfg.App.DataType = "metrics"
+
+	if _, err := api.NewRunner(cfg, nil, ""); err == nil {
+		t.Fatal("expected an error for an unsupported data type")
+	}
+}
+
 func TestRoundTripYAML(t *testing.T) {
-	cfg := api.OTLPLoad("collector.example.com:4317", api.DataTypeTraces)
+	cfg := generateOnly(10)
+	cfg.App.DataType = api.DataTypeTraces
 
 	data, err := api.ToYAML(cfg)
 	if err != nil {
@@ -144,9 +104,6 @@ func TestRoundTripYAML(t *testing.T) {
 
 	if got.App.DataType != api.DataTypeTraces {
 		t.Fatalf("data type: got %q", got.App.DataType)
-	}
-	if got.OTel.URL != cfg.OTel.URL {
-		t.Fatalf("url: got %q want %q", got.OTel.URL, cfg.OTel.URL)
 	}
 	if got.Generate.RowsPerSecond != cfg.Generate.RowsPerSecond {
 		t.Fatalf("rows_per_second: got %d want %d", got.Generate.RowsPerSecond, cfg.Generate.RowsPerSecond)

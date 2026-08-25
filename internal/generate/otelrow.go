@@ -1,6 +1,6 @@
 package generate
 
-import "clickcannon/internal/block"
+import "github.com/ClickHouse/ClickCannon/internal/block"
 
 // This file implements block.LogsReader / block.TracesReader for the generate
 // column types so the OTLP exporter can read generated rows. The generate path

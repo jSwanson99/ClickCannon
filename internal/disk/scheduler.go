@@ -1,13 +1,14 @@
 package disk
 
 import (
-	"clickcannon/internal/block"
-	"clickcannon/internal/metrics"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
+
+	"github.com/ClickHouse/ClickCannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 )
 
 type Scheduler struct {

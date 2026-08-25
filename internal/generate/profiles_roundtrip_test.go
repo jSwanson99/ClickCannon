@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"clickcannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/block"
 
 	"github.com/ClickHouse/ch-go/proto"
 )

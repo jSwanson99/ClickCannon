@@ -1,7 +1,6 @@
 package user
 
 import (
-	"clickcannon/internal/metrics"
 	"context"
 	"database/sql"
 	"errors"
@@ -9,6 +8,8 @@ import (
 	"log/slog"
 	"strconv"
 	"time"
+
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 )
 
 type Worker struct {

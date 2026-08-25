@@ -1,4 +1,4 @@
-module clickcannon
+module github.com/ClickHouse/ClickCannon
 
 go 1.25.0
 

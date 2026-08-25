@@ -57,11 +57,11 @@ type Runner struct {
 	errs  []error
 }
 
-// NewRunner validates cfg and builds the pipeline. Nothing connects until Start, and
-// then only if Config.Metrics is enabled.
+// NewRunner validates cfg and builds the pipeline. Nothing connects until Start,
+// and then only if Config.Metrics is enabled.
 //
 // A nil log discards ClickCannon's log output. An empty runID generates one; it
-// labels the metrics rows and seeds the generator when Config.Seed is empty.
+// labels the metrics rows and seeds the generator when Config.App.Seed is empty.
 func NewRunner(cfg Config, log *slog.Logger, runID string) (*Runner, error) {
 	if runID == "" {
 		runID = app.NewRunID()
@@ -70,15 +70,17 @@ func NewRunner(cfg Config, log *slog.Logger, runID string) (*Runner, error) {
 		log = slog.New(slog.DiscardHandler)
 	}
 
-	if cfg.Seed == "" {
-		cfg.Seed = runID
+	if cfg.App.Seed == "" {
+		cfg.App.Seed = runID
 	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("clickcannon: invalid config: %w", err)
 	}
 
-	internal := cfg.toInternal()
+	// cfg is a value copy, so the Runner owns it and the caller cannot mutate a
+	// run in flight.
+	internal := &cfg
 
 	runName := internal.App.Name
 	if runName == "" {
@@ -160,17 +162,6 @@ func newBlockCreateFunc(cfg *app.Config) (func() block.SharedColumns, error) {
 	}
 
 	return nil, fmt.Errorf("clickcannon: unsupported data type %q", cfg.App.DataType)
-}
-
-func (r *Runner) RunID() string { return r.runID }
-
-// Config returns the effective config, after defaulting and sink arbitration.
-func (r *Runner) Config() Config {
-	cfg := fromInternal(r.cfg)
-	cfg.Insert.Enabled = r.insertEnabled
-	cfg.OTel.Enabled = r.otelEnabled
-
-	return cfg
 }
 
 func (r *Runner) Start() error {

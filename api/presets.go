@@ -1,9 +1,5 @@
 package api
 
-import (
-	"time"
-)
-
 // DefaultRowsPerSecond is the smoke-test rate the presets ship with.
 const DefaultRowsPerSecond = 10
 
@@ -25,149 +21,82 @@ const maxBlockRows = 10_000
 // and one exporter. Opt into real load explicitly:
 //
 //	cfg := api.OTLPLoad(host+":"+port, api.DataTypeLogs)
-//	cfg.WithOTLPHeaders(map[string]string{"authorization": key}).
-//	    WithRowsPerSecond(100_000).
-//	    WithThreads(8, 8)
+//	cfg.OTel.Headers = map[string]string{"authorization": key}
+//	api.SetThreads(&cfg, 8, 8)
+//	api.SetRowsPerSecond(&cfg, 100_000)
 func OTLPLoad(target string, dataType DataType) Config {
 	cfg := Config{
-		Name:     "clickcannon",
-		DataType: dataType,
-		LogLevel: "info",
-	}
-
-	cfg.Generate = GenerateConfig{
-		Enabled:             true,
-		Threads:             1,
-		RowsPerSecond:       DefaultRowsPerSecond,
-		RowsPerBlock:        DefaultRowsPerSecond,
-		Profile:             DefaultProfile,
-		ReuseBlocks:         true,
-		BlockRetirementUses: 1_000,
-	}
-
-	cfg.OTel = OTelConfig{
-		Enabled:       true,
-		URL:           target,
-		Threads:       1,
-		BatchSize:     DefaultRowsPerSecond,
-		FlushInterval: time.Second,
-		Timeout:       30 * time.Second,
-		Compression:   "gzip",
-	}
-
-	return cfg
-}
-
-// NativeInsertLoad returns a config that inserts generated telemetry straight
-// into ClickHouse over the native protocol, bypassing any collector. address is
-// "host:port" for the native interface: 9000 plaintext, 9440 TLS.
-func NativeInsertLoad(address string, dataType DataType) Config {
-	cfg := Config{
-		Name:     "clickcannon",
-		DataType: dataType,
-		LogLevel: "info",
-	}
-
-	cfg.Generate = GenerateConfig{
-		Enabled:             true,
-		Threads:             1,
-		RowsPerSecond:       DefaultRowsPerSecond,
-		RowsPerBlock:        DefaultRowsPerSecond,
-		Profile:             DefaultProfile,
-		ReuseBlocks:         true,
-		BlockRetirementUses: 1_000,
-	}
-
-	cfg.Insert = InsertConfig{
-		Enabled:                 true,
-		Threads:                 1,
-		BatchSize:               1_000_000,
-		WorkerRetirementBatches: 100,
-		ClickHouse: ClickHouseConfig{
-			Address:       address,
-			Secure:        true,
-			Compression:   "lz4",
-			User:          "default",
-			Database:      "otel",
-			LogsTable:     "otel_logs",
-			TracesTable:   "otel_traces",
-			ProfilesTable: "otel_profiles",
+		App: AppConfig{
+			Name:     "clickcannon",
+			DataType: dataType,
 		},
 	}
 
+	cfg.Generate = GenerateConfig{
+		Enabled:             true,
+		Threads:             1,
+		RowsPerSecond:       DefaultRowsPerSecond,
+		RowsPerBlock:        DefaultRowsPerSecond,
+		Profile:             DefaultProfile,
+		ReuseBlocks:         true,
+		BlockRetirementUses: 50,
+	}
+
+	// FlushInterval and Timeout are left zero: otel.Config.withDefaults fills
+	// them with 1s and 30s.
+	cfg.OTel = OTelConfig{
+		Enabled:     true,
+		URL:         target,
+		Threads:     1,
+		BatchSize:   DefaultRowsPerSecond,
+		Compression: "gzip",
+	}
+
 	return cfg
 }
 
-// WithOTLPHeaders sets the gRPC metadata sent with every export, e.g. the
-// collector's ingestion key.
-func (c *Config) WithOTLPHeaders(headers map[string]string) *Config {
-	c.OTel.Headers = headers
-	return c
-}
-
-// WithRowsPerSecond caps the generator's output across all threads; 0 is
+// SetRowsPerSecond caps the generator's output across all threads; 0 is
 // unlimited.
 //
 // It also resizes the block and batch, which are not independent of the rate: a
 // worker takes RowsPerBlock tokens from the limiter before emitting anything, so
 // 10 rows/s with a 10,000-row block stalls ~17 minutes, and 100,000 rows/s with
-// a 10-row block means 10,000 tiny RPCs per second. Use WithBlockSizes to
+// a 10-row block means 10,000 tiny RPCs per second. Set the sizes afterwards to
 // override.
-func (c *Config) WithRowsPerSecond(rps uint64) *Config {
-	c.Generate.RowsPerSecond = rps
+func SetRowsPerSecond(cfg *Config, rps uint64) {
+	cfg.Generate.RowsPerSecond = rps
 
-	size := c.blockSizeFor(rps)
-	c.Generate.RowsPerBlock = size
-	if c.OTel.Enabled {
-		c.OTel.BatchSize = size
+	size := blockSizeFor(cfg, rps)
+	cfg.Generate.RowsPerBlock = size
+	if cfg.OTel.Enabled {
+		cfg.OTel.BatchSize = size
+	}
+}
+
+// SetThreads sets the generator and sink worker counts. It re-applies the block
+// sizing rule, which depends on the generator thread count.
+func SetThreads(cfg *Config, source, sink int) {
+	cfg.Generate.Threads = source
+	if cfg.OTel.Enabled {
+		cfg.OTel.Threads = sink
+	}
+	if cfg.Insert.Enabled {
+		cfg.Insert.Threads = sink
 	}
 
-	return c
+	SetRowsPerSecond(cfg, cfg.Generate.RowsPerSecond)
 }
 
 // blockSizeFor targets roughly one block per generator thread per second.
-func (c *Config) blockSizeFor(rowsPerSecond uint64) int {
+func blockSizeFor(cfg *Config, rowsPerSecond uint64) int {
 	if rowsPerSecond == 0 {
 		return maxBlockRows
 	}
 
-	threads := c.Generate.Threads
+	threads := cfg.Generate.Threads
 	if threads < 1 {
 		threads = 1
 	}
 
 	return min(max(int(rowsPerSecond)/threads, 1), maxBlockRows)
-}
-
-// WithBlockSizes overrides the block and batch sizes; 0 leaves either unchanged.
-// Call it after WithRowsPerSecond and WithThreads, which both recompute these.
-func (c *Config) WithBlockSizes(rowsPerBlock, batchSize int) *Config {
-	if rowsPerBlock > 0 {
-		c.Generate.RowsPerBlock = rowsPerBlock
-	}
-
-	if batchSize > 0 {
-		if c.OTel.Enabled {
-			c.OTel.BatchSize = batchSize
-		}
-		if c.Insert.Enabled {
-			c.Insert.BatchSize = batchSize
-		}
-	}
-
-	return c
-}
-
-// WithThreads sets the generator and sink worker counts. It re-applies the block
-// sizing rule, which depends on the generator thread count.
-func (c *Config) WithThreads(source, sink int) *Config {
-	c.Generate.Threads = source
-	if c.OTel.Enabled {
-		c.OTel.Threads = sink
-	}
-	if c.Insert.Enabled {
-		c.Insert.Threads = sink
-	}
-
-	return c.WithRowsPerSecond(c.Generate.RowsPerSecond)
 }

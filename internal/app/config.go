@@ -27,15 +27,17 @@ type PprofConfig struct {
 	Address string `yaml:"address"`
 }
 
+type AppConfig struct {
+	Name         string `yaml:"name"`
+	LogToFile    bool   `yaml:"log_to_file"`
+	LogToConsole bool   `yaml:"log_to_console"`
+	LogLevel     string `yaml:"log_level"`
+	DataType     string `yaml:"data_type"`
+	Seed         string `yaml:"seed"`
+}
+
 type Config struct {
-	App struct {
-		Name         string `yaml:"name"`
-		LogToFile    bool   `yaml:"log_to_file"`
-		LogToConsole bool   `yaml:"log_to_console"`
-		LogLevel     string `yaml:"log_level"`
-		DataType     string `yaml:"data_type"`
-		Seed         string `yaml:"seed"`
-	} `yaml:"app"`
+	App AppConfig `yaml:"app"`
 
 	Pprof    PprofConfig     `yaml:"pprof"`
 	Disk     disk.Config     `yaml:"disk"`

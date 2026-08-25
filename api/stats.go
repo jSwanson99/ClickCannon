@@ -39,10 +39,6 @@ type Stats struct {
 	BlocksRetired      int64
 }
 
-// RowsSent is the rows that reached the active sink, whichever it was. Zero when
-// running source-only.
-func (s Stats) RowsSent() uint64 { return s.InsertedRows + s.OTelRows }
-
 // memStore keeps counters in memory and optionally forwards to the
 // ClickHouse-backed worker, so enabling Config.Metrics does not cost Stats.
 type memStore struct {

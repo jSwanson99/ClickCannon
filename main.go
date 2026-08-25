@@ -36,7 +36,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := api.Run(ctx, api.FromCLIConfig(cfg), log, runID); err != nil {
+	if err := api.Run(ctx, *cfg, log, runID); err != nil {
 		log.Error("run failed", "err", err)
 		os.Exit(1)
 	}

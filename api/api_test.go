@@ -48,9 +48,9 @@ func TestBlockSizeTracksRate(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := api.OTLPLoad("collector.example.com:4317", api.DataTypeLogs)
-			cfg.WithOTLPHeaders(map[string]string{"authorization": "test-key"}).
-				WithRowsPerSecond(tc.rps).
-				WithThreads(tc.source, tc.sink)
+			cfg.OTel.Headers = map[string]string{"authorization": "test-key"}
+			api.SetRowsPerSecond(&cfg, tc.rps)
+			api.SetThreads(&cfg, tc.source, tc.sink)
 
 			if err := cfg.Validate(); err != nil {
 				t.Fatalf("validate: %v", err)
@@ -69,9 +69,14 @@ func TestBlockSizeTracksRate(t *testing.T) {
 	}
 }
 
-func TestWithBlockSizesOverrides(t *testing.T) {
+// TestBlockSizeOverride checks a manual size set after SetThreads sticks.
+func TestBlockSizeOverride(t *testing.T) {
 	cfg := api.OTLPLoad("collector.example.com:4317", api.DataTypeLogs)
-	cfg.WithRowsPerSecond(100_000).WithThreads(4, 4).WithBlockSizes(250, 500)
+	api.SetRowsPerSecond(&cfg, 100_000)
+	api.SetThreads(&cfg, 4, 4)
+
+	cfg.Generate.RowsPerBlock = 250
+	cfg.OTel.BatchSize = 500
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate: %v", err)
@@ -92,7 +97,7 @@ func TestRunPassthroughAtSmokeRate(t *testing.T) {
 	cfg := api.OTLPLoad("unused:4317", api.DataTypeLogs)
 	cfg.OTel.Enabled = false
 
-	r, err := api.New(cfg, nil, "")
+	r, err := api.NewRunner(cfg, nil, "")
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
@@ -127,7 +132,7 @@ func TestRunPassthroughAtSmokeRate(t *testing.T) {
 func TestRoundTripYAML(t *testing.T) {
 	cfg := api.OTLPLoad("collector.example.com:4317", api.DataTypeTraces)
 
-	data, err := cfg.ToYAML()
+	data, err := api.ToYAML(cfg)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -137,8 +142,8 @@ func TestRoundTripYAML(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 
-	if got.DataType != api.DataTypeTraces {
-		t.Fatalf("data type: got %q", got.DataType)
+	if got.App.DataType != api.DataTypeTraces {
+		t.Fatalf("data type: got %q", got.App.DataType)
 	}
 	if got.OTel.URL != cfg.OTel.URL {
 		t.Fatalf("url: got %q want %q", got.OTel.URL, cfg.OTel.URL)

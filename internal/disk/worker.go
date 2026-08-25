@@ -2,8 +2,6 @@ package disk
 
 import (
 	"bufio"
-	"clickcannon/internal/block"
-	"clickcannon/internal/metrics"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +9,9 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+
+	"github.com/ClickHouse/ClickCannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/klauspost/compress/zstd"

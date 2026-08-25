@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"clickcannon/internal/user"
+	"github.com/ClickHouse/ClickCannon/internal/user"
 )
 
 const (

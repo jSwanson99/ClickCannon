@@ -1,7 +1,6 @@
 package user
 
 import (
-	"clickcannon/internal/metrics"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +9,8 @@ import (
 	"math/rand/v2"
 	"sync"
 	"time"
+
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 )
 
 type Scheduler struct {

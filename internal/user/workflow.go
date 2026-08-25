@@ -1,12 +1,13 @@
 package user
 
 import (
-	"clickcannon/internal/metrics"
 	"context"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"time"
+
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 )
 
 type Workflow interface {

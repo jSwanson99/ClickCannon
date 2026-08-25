@@ -30,7 +30,7 @@ func NewBlockPool(poolSize int, retireAfter int, newInstance func() SharedColumn
 		uses:            make(map[SharedColumns]int, poolSize),
 	}
 
-	for i := 0; i < poolSize; i++ {
+	for range poolSize {
 		cols := newInstance()
 		p.pool <- cols
 		p.uses[cols] = 0

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"clickcannon/internal/block"
-	"clickcannon/internal/metrics"
+	"github.com/ClickHouse/ClickCannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 
 	"google.golang.org/protobuf/proto"
 )

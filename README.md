@@ -45,6 +45,59 @@ By default a random UUID is generated as the run ID each time the program starts
 CLICKCANNON_RUN_ID=my-run-id go run clickcannon --config my-config.yaml
 ```
 
+## As a library
+
+The `api` package embeds ClickCannon in another program. Unlike the binary it never calls `flag.Parse`, `os.Exit`, or `signal.Notify`, and returns errors instead of printing them. Build a `Config`, then run it:
+
+```go
+cfg := api.Config{}
+cfg.App.DataType = api.DataTypeLogs
+cfg.Generate = api.GenerateConfig{
+    Enabled:       true,
+    Threads:       1,
+    RowsPerSecond: 10_000,
+    RowsPerBlock:  10_000,
+    ReuseBlocks:   true,
+}
+cfg.OTel = api.OTelConfig{
+    Enabled:   true,
+    URL:       "localhost:4317",
+    Insecure:  true,
+    Threads:   1,
+    BatchSize: 10_000,
+}
+
+ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+defer cancel()
+
+if err := api.Run(ctx, cfg, slog.Default(), "run-id-123"); err != nil {
+    return err
+}
+```
+
+`Run` blocks until the context is cancelled or every worker finishes, for progress while it runs drive the `Runner` yourself:
+
+```go
+r, err := api.NewRunner(cfg, nil, "")
+if err != nil {
+    return err
+}
+if err := r.Start(); err != nil {
+    return err
+}
+
+go func() {
+    for range time.Tick(15 * time.Second) {
+        s := r.Stats()
+        fmt.Println(s.GeneratedRows, s.OTelRows, s.OTelExportsFailed)
+    }
+}()
+
+return r.Wait(ctx) // stops the runner and drains the pipeline
+```
+
+`Stats` is only populated when `Config.Metrics` is enabled, which requires a ClickHouse DSN.
+
 # Data Sources
 
 ClickCannon supports two data sources: disk replay and synthetic generation. Use one or the other.

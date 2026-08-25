@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"clickcannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/block"
 
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	resourcepb "go.opentelemetry.io/proto/otlp/resource/v1"

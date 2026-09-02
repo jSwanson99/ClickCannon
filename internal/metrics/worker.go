@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"clickcannon/internal/block"
 	"context"
 	"fmt"
 	"log/slog"
@@ -10,6 +9,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/ClickHouse/ClickCannon/internal/block"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"

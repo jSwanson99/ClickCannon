@@ -1,7 +1,7 @@
 package otel
 
 import (
-	"clickcannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/block"
 
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"

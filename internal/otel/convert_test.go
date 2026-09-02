@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"clickcannon/internal/block"
-	"clickcannon/internal/generate"
+	"github.com/ClickHouse/ClickCannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/generate"
 
 	"github.com/ClickHouse/ch-go/proto"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"

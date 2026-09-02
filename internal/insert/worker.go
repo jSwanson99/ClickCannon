@@ -1,8 +1,6 @@
 package insert
 
 import (
-	"clickcannon/internal/block"
-	"clickcannon/internal/metrics"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -11,6 +9,9 @@ import (
 	"log/slog"
 	"strconv"
 	"time"
+
+	"github.com/ClickHouse/ClickCannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"

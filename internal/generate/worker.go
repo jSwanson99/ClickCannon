@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"clickcannon/internal/block"
-	"clickcannon/internal/metrics"
+	"github.com/ClickHouse/ClickCannon/internal/block"
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
 
 	"golang.org/x/time/rate"
 )

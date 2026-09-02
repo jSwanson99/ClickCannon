@@ -1,17 +1,18 @@
 package app
 
 import (
-	"clickcannon/internal/disk"
-	"clickcannon/internal/generate"
-	"clickcannon/internal/insert"
-	"clickcannon/internal/metrics"
-	"clickcannon/internal/otel"
-	"clickcannon/internal/user"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/ClickHouse/ClickCannon/internal/disk"
+	"github.com/ClickHouse/ClickCannon/internal/generate"
+	"github.com/ClickHouse/ClickCannon/internal/insert"
+	"github.com/ClickHouse/ClickCannon/internal/metrics"
+	"github.com/ClickHouse/ClickCannon/internal/otel"
+	"github.com/ClickHouse/ClickCannon/internal/user"
 
 	"github.com/goccy/go-yaml"
 )
@@ -26,15 +27,17 @@ type PprofConfig struct {
 	Address string `yaml:"address"`
 }
 
+type AppConfig struct {
+	Name         string `yaml:"name"`
+	LogToFile    bool   `yaml:"log_to_file"`
+	LogToConsole bool   `yaml:"log_to_console"`
+	LogLevel     string `yaml:"log_level"`
+	DataType     string `yaml:"data_type"`
+	Seed         string `yaml:"seed"`
+}
+
 type Config struct {
-	App struct {
-		Name         string `yaml:"name"`
-		LogToFile    bool   `yaml:"log_to_file"`
-		LogToConsole bool   `yaml:"log_to_console"`
-		LogLevel     string `yaml:"log_level"`
-		DataType     string `yaml:"data_type"`
-		Seed         string `yaml:"seed"`
-	} `yaml:"app"`
+	App AppConfig `yaml:"app"`
 
 	Pprof    PprofConfig     `yaml:"pprof"`
 	Disk     disk.Config     `yaml:"disk"`

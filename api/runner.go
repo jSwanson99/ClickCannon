@@ -30,7 +30,7 @@ type Runner struct {
 	insertEnabled bool
 	otelEnabled   bool
 
-	store           *memStore
+	store           metrics.Store
 	blockPool       block.Pool
 	blockCreateFunc func() block.SharedColumns
 	insertQueue     chan block.SharedColumns
@@ -123,13 +123,12 @@ func NewRunner(cfg Config, log *slog.Logger, runID string) (*Runner, error) {
 	}
 
 	return &Runner{
-		cfg:           internal,
-		log:           log.With("run_id", runID),
-		runID:         runID,
-		runName:       runName,
-		insertEnabled: insertEnabled,
-		otelEnabled:   otelEnabled,
-
+		cfg:             internal,
+		log:             log.With("run_id", runID),
+		runID:           runID,
+		runName:         runName,
+		insertEnabled:   insertEnabled,
+		otelEnabled:     otelEnabled,
 		blockPool:       blockPool,
 		blockCreateFunc: blockCreateFunc,
 		insertQueue:     make(chan block.SharedColumns, blocksToAlloc),
@@ -144,20 +143,32 @@ func newBlockCreateFunc(cfg *app.Config) (func() block.SharedColumns, error) {
 	if cfg.Generate.Enabled {
 		switch cfg.App.DataType {
 		case app.ConfigDataTypeLogs:
-			return func() block.SharedColumns { return generate.NewGenLogsColumns() }, nil
+			return func() block.SharedColumns {
+				return generate.NewGenLogsColumns()
+			}, nil
 		case app.ConfigDataTypeTraces:
-			return func() block.SharedColumns { return generate.NewGenTracesColumns() }, nil
+			return func() block.SharedColumns {
+				return generate.NewGenTracesColumns()
+			}, nil
 		case app.ConfigDataTypeProfiles:
-			return func() block.SharedColumns { return generate.NewGenProfilesColumns() }, nil
+			return func() block.SharedColumns {
+				return generate.NewGenProfilesColumns()
+			}, nil
 		}
 	} else {
 		switch cfg.App.DataType {
 		case app.ConfigDataTypeLogs:
-			return func() block.SharedColumns { return block.NewLogsSharedColumns(cfg.Disk.HasTimestampTime) }, nil
+			return func() block.SharedColumns {
+				return block.NewLogsSharedColumns(cfg.Disk.HasTimestampTime)
+			}, nil
 		case app.ConfigDataTypeTraces:
-			return func() block.SharedColumns { return block.NewTracesSharedColumns() }, nil
+			return func() block.SharedColumns {
+				return block.NewTracesSharedColumns()
+			}, nil
 		case app.ConfigDataTypeProfiles:
-			return func() block.SharedColumns { return block.NewProfilesSharedColumns() }, nil
+			return func() block.SharedColumns {
+				return block.NewProfilesSharedColumns()
+			}, nil
 		}
 	}
 
@@ -209,8 +220,9 @@ func (r *Runner) startMetrics() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancelMetrics = cancel
 
+	// Nothing counts when metrics are disabled, so Stats stays zero.
 	if !r.cfg.Metrics.Enabled {
-		r.store = newMemStore(nil)
+		r.store = metrics.NewDisabledStore()
 		return nil
 	}
 
@@ -231,7 +243,7 @@ func (r *Runner) startMetrics() error {
 		return fmt.Errorf("clickcannon: create metrics worker: %w", err)
 	}
 
-	r.store = newMemStore(w)
+	r.store = w
 
 	r.metricsWg.Go(func() {
 		r.record("metrics worker", w.Run(ctx))
@@ -322,15 +334,15 @@ func (r *Runner) hasSource() bool {
 	return r.cfg.Disk.Enabled || r.cfg.Generate.Enabled
 }
 
-func (r *Runner) record(what string, err error) {
+func (r *Runner) record(msg string, err error) {
 	if err == nil || errors.Is(err, context.Canceled) {
 		return
 	}
 
-	r.log.Error("scheduler error", "scheduler", what, "err", err)
+	r.log.Error("scheduler error", "scheduler", msg, "err", err)
 
 	r.errMu.Lock()
-	r.errs = append(r.errs, fmt.Errorf("%s: %w", what, err))
+	r.errs = append(r.errs, fmt.Errorf("%s: %w", msg, err))
 	r.errMu.Unlock()
 }
 
@@ -385,12 +397,13 @@ func (r *Runner) err() error {
 }
 
 // Stats is safe to call at any time, including before Start and after Stop.
+// Zero unless Config.Metrics is enabled.
 func (r *Runner) Stats() Stats {
 	if r.store == nil {
 		return Stats{}
 	}
 
-	return r.store.snapshot()
+	return statsFrom(r.store)
 }
 
 // Run starts the pipeline and runs until ctx is cancelled or every worker

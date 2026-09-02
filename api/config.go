@@ -1,11 +1,8 @@
 // Package api is the public wrapper around ClickCannon, for embedding it as a
-// library. Unlike the binary it never calls flag.Parse, os.Exit, signal.Notify,
-// or mutates time.Local, and it returns errors instead of printing them.
+// library
 package api
 
 import (
-	"fmt"
-
 	"github.com/ClickHouse/ClickCannon/internal/app"
 	"github.com/ClickHouse/ClickCannon/internal/disk"
 	"github.com/ClickHouse/ClickCannon/internal/generate"
@@ -13,8 +10,6 @@ import (
 	"github.com/ClickHouse/ClickCannon/internal/metrics"
 	"github.com/ClickHouse/ClickCannon/internal/otel"
 	"github.com/ClickHouse/ClickCannon/internal/user"
-
-	"github.com/goccy/go-yaml"
 )
 
 // DataType selects which signal a run produces. A run handles exactly one.
@@ -56,23 +51,3 @@ type (
 	QueryConfig     = user.QueryConfig
 	TimeRangeConfig = user.TimeRangeConfig
 )
-
-// ParseYAML reads and validates a config in the format the binary's --config
-// flag accepts.
-func ParseYAML(data []byte) (Config, error) {
-	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return Config{}, fmt.Errorf("parse clickcannon config: %w", err)
-	}
-
-	if err := cfg.Validate(); err != nil {
-		return Config{}, fmt.Errorf("invalid clickcannon config: %w", err)
-	}
-
-	return cfg, nil
-}
-
-// ToYAML renders a config in the binary's file format.
-func ToYAML(cfg Config) ([]byte, error) {
-	return yaml.Marshal(cfg)
-}

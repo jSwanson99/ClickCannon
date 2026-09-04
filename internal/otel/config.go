@@ -12,9 +12,7 @@ import (
 type Config struct {
 	Enabled bool `yaml:"enabled"`
 
-	// Protocol selects the OTLP transport: "grpc" (default) or "http". "http" is
-	// OTLP/HTTP with a protobuf payload (typically port 4318), "grpc" is
-	// OTLP/gRPC (typically port 4317).
+	// Protocol selects the OTLP transport: "grpc" (default) or "http"
 	Protocol string `yaml:"protocol"`
 
 	// URL is the OTLP endpoint. For gRPC this is a host:port, e.g.
@@ -92,6 +90,11 @@ func (c Config) Validate() error {
 	}
 	if c.URL == "" {
 		return errors.New("must set url")
+	}
+	if c.protocol() == protocolHTTP {
+		if _, err := httpBaseURL(c.URL, c.Insecure); err != nil {
+			return err
+		}
 	}
 	if c.Threads < 1 {
 		return errors.New("must set threads to a value greater than zero")

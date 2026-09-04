@@ -44,7 +44,7 @@ func NewScheduler(
 }
 
 func (s *Scheduler) Run(ctx context.Context) error {
-	s.log.Info("started", "threads", s.cfg.Threads, "url", s.cfg.URL, "batch_size", s.cfg.BatchSize)
+	s.log.Info("started", "protocol", s.cfg.protocol(), "threads", s.cfg.Threads, "url", s.cfg.URL, "batch_size", s.cfg.BatchSize)
 
 	var wg sync.WaitGroup
 	for i := range s.cfg.Threads {

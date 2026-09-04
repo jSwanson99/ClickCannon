@@ -61,6 +61,7 @@ cfg.Generate = api.GenerateConfig{
 }
 cfg.OTel = api.OTelConfig{
     Enabled:   true,
+    Protocol:  "grpc", // or "http"
     URL:       "localhost:4317",
     Insecure:  true,
     Threads:   1,
